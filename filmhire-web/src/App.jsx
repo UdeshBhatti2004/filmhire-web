@@ -1,9 +1,16 @@
-import React from 'react'
+import { useSelector } from "react-redux";
 
 function App() {
+
+  const auth = useSelector((state) => state.auth);
+
+  console.log(auth);
+
   return (
-    <div>App</div>
-  )
+    <div>
+      FilmHire
+    </div>
+  );
 }
 
-export default App
+export default App;
