@@ -32,6 +32,7 @@ const DashboardRouter = () => {
       } else if (profile.role === "professional") {
         navigate("/professional/dashboard");
       }
+
     };
 
     checkRole();

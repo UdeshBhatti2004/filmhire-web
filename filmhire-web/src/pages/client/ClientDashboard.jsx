@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { 
   Compass, 
   Briefcase, 
@@ -20,11 +20,43 @@ import {
   Sparkles,
   Bell
 } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { useNavigate } from "react-router-dom";
 
 const ClientDashboard = () => {
   const [activeFeedFilter, setActiveFeedFilter] = useState("discover");
   const [likedPosts, setLikedPosts] = useState({});
   const [savedPosts, setSavedPosts] = useState({});
+  const navigate = useNavigate()
+
+  useEffect(() => {
+  const checkAccess = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    console.log(user);
+
+
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "client") {
+      navigate("/professional/dashboard");
+      return;
+    }
+  };
+
+  checkAccess();
+}, []);
   
   const [visibleComments, setVisibleComments] = useState({ "PROD-902": true });
   const [activeComments, setActiveComments] = useState({
