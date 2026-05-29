@@ -1,15 +1,10 @@
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { Briefcase, UserCheck } from "lucide-react";
 
 const RoleSelect = () => {
   const navigate = useNavigate();
-
-  // GET LOGGED IN USER
-  const user = useSelector((state) => state.auth.user);
-
 
   // UI Interactive States
   const [loading, setLoading] = useState(false);
@@ -20,29 +15,26 @@ const RoleSelect = () => {
   // HANDLE ROLE SELECTION
   // =========================
   const handleSelectRole = async (role) => {
-
-        const {
-  data: { user: authUser },
-} = await supabase.auth.getUser();
-
-console.log(authUser);
-
     try {
       setLoading(true);
-      // SAFETY CHECK
-      if (!user) {
-        alert("No user found");
+
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        navigate("/login");
         return;
       }
 
       // CREATE PROFILE
       const { error } = await supabase
         .from("profiles")
-        .insert({
-          id: user.id,
+        .upsert({
+          id: authUser.id,
           full_name:
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
+            authUser.user_metadata?.full_name ||
+            authUser.user_metadata?.name ||
             "User",
           role,
         });
@@ -52,7 +44,7 @@ console.log(authUser);
         return;
       }
 
-        navigate("/complete-profile");
+      navigate("/complete-profile");
 
     } catch (error) {
       console.log(error);

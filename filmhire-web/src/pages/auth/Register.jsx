@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useDispatch } from "react-redux";
 import { setUser } from "../../store/slice/authSlice";
 import { useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 
 const Register = () => {
   const dispatch = useDispatch();
@@ -32,15 +31,20 @@ const Register = () => {
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
+      console.log("Register clicked");
+
+const { data, error } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    data: {
+      full_name: fullName,
+    },
+  },
+});
+
+console.log("Response:", data);
+console.log("Error:", error);
 
 
 

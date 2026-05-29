@@ -2,16 +2,26 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
+const normalizeRole = (role) => role?.trim().toLowerCase();
+
 const DashboardRouter = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkRole = async () => {
+      console.log("[DashboardRouter] Checking dashboard destination");
+
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
+      if (userError) {
+        console.error("[DashboardRouter] getUser error", userError);
+      }
+
       if (!user) {
+        console.warn("[DashboardRouter] No authenticated user, redirecting to login");
         navigate("/login");
         return;
       }
@@ -20,17 +30,37 @@ const DashboardRouter = () => {
         .from("profiles")
         .select("role")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !profile) {
-        navigate("/select-role");
+      if (error || !profile?.role) {
+        console.warn("[DashboardRouter] Missing role, redirecting to role selection", {
+          userId: user.id,
+          rawRole: profile?.role,
+          error,
+        });
+        navigate("/select-role", { replace: true });
         return;
       }
 
-      if (profile.role === "client") {
-        navigate("/client/dashboard");
-      } else if (profile.role === "professional") {
-        navigate("/professional/dashboard");
+      const role = normalizeRole(profile.role);
+
+      console.log("[DashboardRouter] Role destination result", {
+        userId: user.id,
+        rawRole: profile.role,
+        normalizedRole: role,
+      });
+
+      if (role === "client") {
+        navigate("/client/dashboard", { replace: true });
+      } else if (role === "professional") {
+        navigate("/professional/dashboard", { replace: true });
+      } else {
+        console.warn("[DashboardRouter] Unknown role, redirecting to role selection", {
+          userId: user.id,
+          rawRole: profile.role,
+          normalizedRole: role,
+        });
+        navigate("/select-role", { replace: true });
       }
     };
 

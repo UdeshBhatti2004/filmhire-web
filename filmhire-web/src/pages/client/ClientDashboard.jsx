@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { 
   Compass, 
   Briefcase, 
-  Layers, 
   Users, 
   UserCheck, 
   DollarSign, 
@@ -17,7 +16,6 @@ import {
   MessageSquare,
   Minus,
   ChevronUp,
-  Sparkles,
   Bell
 } from "lucide-react";
 
@@ -39,7 +37,7 @@ const ClientDashboard = () => {
   const [commentInputs, setCommentInputs] = useState({});
 
   const [isChatExpanded, setIsChatExpanded] = useState(false);
-  const [activeChatUser, setActiveChatUser] = useState({ name: "Devon Lane", role: "Director of Photography", avatar: "DL" });
+  const [activeChatUser] = useState({ name: "Devon Lane", role: "Director of Photography", avatar: "DL" });
   const [chatMessages, setChatMessages] = useState([
     { id: 1, sender: "them", text: "Hey! Just saw your Haute Couture editorial brief. Is the travel covered from Milan?" },
     { id: 2, sender: "me", text: "Absolutely. Full production flights, lodging, and kit transport allowances are integrated into the budget scope." },

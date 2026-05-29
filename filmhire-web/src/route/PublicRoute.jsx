@@ -5,7 +5,7 @@ import {
   selectLoading,
 } from "../store/slice/authSlice";
 
-function ProtectedRoute({ children }) {
+function PublicRoute({ children }) {
   const session = useSelector(selectSession);
   const loading = useSelector(selectLoading);
 
@@ -13,11 +13,11 @@ function ProtectedRoute({ children }) {
     return <h1>Loading...</h1>;
   }
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
+  if (session) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
 }
 
-export default ProtectedRoute;
+export default PublicRoute;
