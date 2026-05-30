@@ -18,6 +18,7 @@ import {
   ChevronUp,
   Bell
 } from "lucide-react";
+import ClientNavbar from "../../components/client/ClientNavbar";
 
 const ClientDashboard = () => {
   const [activeFeedFilter, setActiveFeedFilter] = useState("discover");
@@ -113,36 +114,7 @@ const ClientDashboard = () => {
       `}</style>
 
       {/* Global Application Nav Bar */}
-      <header className="sticky top-0 z-40 bg-[#050507]/60 backdrop-blur-xl border-b border-white/[0.06] px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3 select-none">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 p-[1px]">
-            <div className="w-full h-full bg-[#09090b] rounded-[11px] flex items-center justify-center font-display font-bold text-sm tracking-tighter text-white">
-              FH
-            </div>
-          </div>
-          <span className="font-display font-bold text-sm uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-neutral-100 to-neutral-400">FutureHub</span>
-        </div>
-
-        <nav className="hidden lg:flex items-center gap-1 bg-white/[0.02] p-1 rounded-xl border border-white/[0.06] backdrop-blur-md">
-          <button className="px-4 py-1.5 text-xs font-medium bg-white/[0.07] border border-white/[0.08] text-white shadow-xl rounded-lg transition-all">Dashboard</button>
-          <button className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all">Create Job</button>
-          <button className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all">Job Details</button>
-          <button className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all">Applicants</button>
-          <button className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all">Profile</button>
-        </nav>
-
-        <div className="flex items-center gap-4">
-          <button className="p-2 text-neutral-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.05] rounded-xl transition-all relative">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-          </button>
-          <div className="h-8 w-[1px] bg-white/[0.08]" />
-          <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.05] pl-3 pr-1.5 py-1.5 rounded-xl">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-semibold">Client Mode</span>
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300 font-mono">CP</div>
-          </div>
-        </div>
-      </header>
+      <ClientNavbar/>
 
       {/* Main Grid Layout Workspace Area */}
       <div className="flex-1 max-w-[1440px] w-full mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-8 mt-8 items-start pb-24">
