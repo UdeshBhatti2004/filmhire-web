@@ -24,10 +24,6 @@ function AuthProvider({ children }) {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (error) {
-        
-      }
-
       
 
       dispatch(setRole(normalizeRole(data?.role)));
