@@ -2,15 +2,18 @@ import React, { useEffect } from 'react'
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
+
+
 const ProfessionalDashboard = () => {
-   const navigate = useNavigate()
+
+  const navigate = useNavigate()
 
 
-   const handleLogout = async () => {
+  const handleLogout = async () => {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    console.log(error);
+    
     return;
   }
 
@@ -44,6 +47,7 @@ useEffect(() => {
 
   checkAccess();
 }, []);
+
 
   return (
     <div>

@@ -1,4 +1,3 @@
-import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
@@ -8,21 +7,80 @@ import CompleteProfile from "./pages/auth/CompleteProfile";
 import DashboardRouter from "./pages/DashboardRouter";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ProfessionalDashboard from "./pages/professional/ProfessionalDashboard";
+import PublicRoute from "./route/PublicRoute";
+import ProtectedRoute from "./route/ProtectedRoute";
+import ClientRoute from "./route/ClientRoute";
+import ProfessionalRoute from "./route/ProfessionalRoute";
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/register" />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/select-role" element={<RoleSelect />} />
-      <Route path="/complete-profile" element={<CompleteProfile />} />
+      {/* Public Routes */}
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
 
-      <Route path="/dashboard" element={<DashboardRouter />} />
-      <Route path="/client/dashboard" element={<ClientDashboard />} />
-      <Route path="/professional/dashboard" element={<ProfessionalDashboard />} />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        }
+      />
 
+      {/* Protected Routes */}
+      <Route
+        path="/select-role"
+        element={
+          <ProtectedRoute>
+            <RoleSelect />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/complete-profile"
+        element={
+          <ProtectedRoute>
+            <CompleteProfile />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardRouter />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/client/dashboard"
+        element={
+          <ClientRoute>
+            <ClientDashboard />
+          </ClientRoute>
+        }
+      />
+
+      <Route
+        path="/professional/dashboard"
+        element={
+          <ProfessionalRoute>
+            <ProfessionalDashboard />
+          </ProfessionalRoute>
+        }
+      />
     </Routes>
   );
 }
