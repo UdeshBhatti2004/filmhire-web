@@ -40,7 +40,7 @@ const CompleteProfile = () => {
         .single();
 
       if (error) {
-        console.log(error);
+        
         return;
       }
 
@@ -106,7 +106,7 @@ const CompleteProfile = () => {
         finalData.company_name = companyName;
       }
 
-      console.log("FINAL DATA:", finalData);
+      
 
       const { data: updatedProfile, error } = await supabase
         .from("profiles")
@@ -114,13 +114,13 @@ const CompleteProfile = () => {
         .eq("id", user.id)
         .select();
 
-      console.log("UPDATED PROFILE:", updatedProfile);
+      
 
       if (error) throw error;
 
       navigate("/dashboard");
     } catch (err) {
-      console.log(err);
+      
       alert(err.message);
     } finally {
       setLoading(false);

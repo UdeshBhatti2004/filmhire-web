@@ -31,7 +31,7 @@ const Register = () => {
         return;
       }
 
-      console.log("Register clicked");
+      
 
 const { data, error } = await supabase.auth.signUp({
   email,
@@ -43,8 +43,8 @@ const { data, error } = await supabase.auth.signUp({
   },
 });
 
-console.log("Response:", data);
-console.log("Error:", error);
+
+
 
 
 
@@ -60,7 +60,7 @@ console.log("Error:", error);
         navigate("/select-role");
       }
     } catch (error) {
-      console.log(error);
+      
       alert("Something went wrong");
     } finally {
       setLoading(false);
@@ -79,7 +79,7 @@ console.log("Error:", error);
         },
       });
     } catch (error) {
-      console.log(error);
+      
     }
   };
 

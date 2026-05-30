@@ -20,7 +20,7 @@ function Login() {
         password,
       });
 
-      console.log("LOGIN DATA:", data);
+      
 
       if (error) {
         alert(error.message);
@@ -29,7 +29,7 @@ function Login() {
 
       navigate("/dashboard");
     } catch (err) {
-      console.log(err);
+      
       alert("Something went wrong");
     } finally {
       setLoading(false);
@@ -45,7 +45,7 @@ function Login() {
         },
       });
     } catch (error) {
-      console.log(error);
+      
     }
   };
 

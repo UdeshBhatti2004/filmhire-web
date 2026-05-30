@@ -9,7 +9,7 @@ const DashboardRouter = () => {
 
   useEffect(() => {
     const checkRole = async () => {
-      console.log("[DashboardRouter] Checking dashboard destination");
+      
 
       const {
         data: { user },
@@ -17,11 +17,11 @@ const DashboardRouter = () => {
       } = await supabase.auth.getUser();
 
       if (userError) {
-        console.error("[DashboardRouter] getUser error", userError);
+        
       }
 
       if (!user) {
-        console.warn("[DashboardRouter] No authenticated user, redirecting to login");
+        
         navigate("/login");
         return;
       }
@@ -33,33 +33,21 @@ const DashboardRouter = () => {
         .maybeSingle();
 
       if (error || !profile?.role) {
-        console.warn("[DashboardRouter] Missing role, redirecting to role selection", {
-          userId: user.id,
-          rawRole: profile?.role,
-          error,
-        });
+        
         navigate("/select-role", { replace: true });
         return;
       }
 
       const role = normalizeRole(profile.role);
 
-      console.log("[DashboardRouter] Role destination result", {
-        userId: user.id,
-        rawRole: profile.role,
-        normalizedRole: role,
-      });
+      
 
       if (role === "client") {
         navigate("/client/dashboard", { replace: true });
       } else if (role === "professional") {
         navigate("/professional/dashboard", { replace: true });
       } else {
-        console.warn("[DashboardRouter] Unknown role, redirecting to role selection", {
-          userId: user.id,
-          rawRole: profile.role,
-          normalizedRole: role,
-        });
+      
         navigate("/select-role", { replace: true });
       }
     };

@@ -12,7 +12,7 @@ const ProfessionalDashboard = () => {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    console.log(error);
+    
     return;
   }
 

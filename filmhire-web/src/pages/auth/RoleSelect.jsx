@@ -47,7 +47,7 @@ const RoleSelect = () => {
       navigate("/complete-profile");
 
     } catch (error) {
-      console.log(error);
+      
       alert("Something went wrong");
     } finally {
       setLoading(false);
