@@ -10,7 +10,12 @@ import ProfessionalDashboard from "./pages/professional/ProfessionalDashboard";
 import PublicRoute from "./route/PublicRoute";
 import ProtectedRoute from "./route/ProtectedRoute";
 import ClientRoute from "./route/ClientRoute";
+import CreateJob from "./pages/client/CreateJob";
+import MyJobs from "./pages/client/MyJobs"
 import ProfessionalRoute from "./route/ProfessionalRoute";
+import JobDetails from "./pages/client/JobDetails";
+
+
 
 function App() {
   return (
@@ -64,6 +69,9 @@ function App() {
         }
       />
 
+
+   /// Client Routes
+
       <Route
         path="/client/dashboard"
         element={
@@ -72,6 +80,36 @@ function App() {
           </ClientRoute>
         }
       />
+
+      <Route
+        path="/client/create-job"
+        element={
+          <ClientRoute>
+            <CreateJob />
+          </ClientRoute>
+        }
+      />
+
+      <Route
+        path="/client/jobs"
+        element={
+          <ClientRoute>
+            <MyJobs />
+          </ClientRoute>
+        }
+      />
+
+
+      <Route
+  path="/client/jobs/:id"
+  element={
+    <ClientRoute>
+      <JobDetails />
+    </ClientRoute>
+  }
+/>
+
+/// Professinal Routes
 
       <Route
         path="/professional/dashboard"
