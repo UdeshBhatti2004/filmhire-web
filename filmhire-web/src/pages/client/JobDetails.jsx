@@ -63,6 +63,8 @@ const handleUpdate = async () => {
   const { error } = await supabase
     .from("jobs")
     .update({
+
+
       title,
       description,
       category,
@@ -238,6 +240,7 @@ const handleDelete = async () => {
 
             <button className="px-5 py-3 bg-white/[0.05] hover:bg-white/[0.08] rounded-xl transition-all">
               View Applicants
+
             </button>
 
             <button
