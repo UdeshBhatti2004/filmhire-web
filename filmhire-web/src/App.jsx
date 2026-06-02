@@ -13,7 +13,9 @@ import ClientRoute from "./route/ClientRoute";
 import CreateJob from "./pages/client/CreateJob";
 import MyJobs from "./pages/client/MyJobs"
 import ProfessionalRoute from "./route/ProfessionalRoute";
-import JobDetails from "./pages/client/JobDetails";
+import ClientJobDetails from "./pages/client/JobDetails";
+import ProfessionalJobDetails from "./pages/professional/JobDetails";
+import { NotFoundPage } from "./pages/NotFound";
 
 
 
@@ -70,6 +72,8 @@ function App() {
       />
 
 
+
+
    /// Client Routes
 
       <Route
@@ -104,7 +108,7 @@ function App() {
   path="/client/jobs/:id"
   element={
     <ClientRoute>
-      <JobDetails />
+      <ClientJobDetails />
     </ClientRoute>
   }
 />
@@ -119,6 +123,15 @@ function App() {
           </ProfessionalRoute>
         }
       />
+
+            <Route
+        path="/professional/jobs/:jobId"
+        element={
+            <ProfessionalJobDetails />
+        }
+      />
+
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

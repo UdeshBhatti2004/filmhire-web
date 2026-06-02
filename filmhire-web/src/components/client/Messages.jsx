@@ -1,16 +1,38 @@
 // src/components/client/views/Messages.jsx
-
+import React, { useState } from "react";
 import { Send } from "lucide-react";
 
 const Messages = ({
-  conversations,
+  conversations = [],
   activeChatId,
   setActiveChatId,
   activeChat,
-  typedMessage,
-  setTypedMessage,
-  handleSendMessage,
+  handleSendMessage, // The parent function that pushes data to your database
 }) => {
+  // FIX: Track the typed message locally so it doesn't trigger parent-wide re-render cycles
+  const [localTypedMessage, setLocalTypedMessage] = useState("");
+
+  // Handle local form submission interceptor
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (!localTypedMessage.trim()) return;
+
+    // Pass the message content up to your database transmission function
+    handleSendMessage(localTypedMessage.trim());
+
+    // Snappy, instantaneous local cleanup
+    setLocalTypedMessage("");
+  };
+
+  // Fallback protection in case an active chat hasn't resolved yet
+  if (!activeChat) {
+    return (
+      <div className="col-span-12 h-[450px] flex items-center justify-center text-xs text-slate-500 font-mono bg-[#09090F]">
+        Initializing secure message terminal...
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Left Chat List */}
@@ -27,12 +49,13 @@ const Messages = ({
 
         <div className="flex-1 overflow-y-auto divide-y divide-white/[0.02]">
           {conversations.map((chat) => {
-            const lastMsg = chat.messages[chat.messages.length - 1];
+            const lastMsg = chat.messages?.[chat.messages.length - 1];
             const isActive = chat.id === activeChatId;
 
             return (
               <button
                 key={chat.id}
+                type="button"
                 onClick={() => setActiveChatId(chat.id)}
                 className={`w-full p-3.5 flex items-center gap-3 text-left transition-all relative ${
                   isActive
@@ -42,7 +65,7 @@ const Messages = ({
               >
                 <img
                   src={chat.avatar}
-                  className="w-9 h-9 rounded object-cover border border-premium"
+                  className="w-9 h-9 rounded object-cover border border-premium flex-shrink-0"
                   alt=""
                 />
 
@@ -52,7 +75,7 @@ const Messages = ({
                       {chat.name}
                     </h4>
 
-                    <span className="text-[9px] text-slate-500 font-mono">
+                    <span className="text-[9px] text-slate-500 font-mono flex-shrink-0">
                       {lastMsg?.time || ""}
                     </span>
                   </div>
@@ -74,35 +97,36 @@ const Messages = ({
       {/* Right Chat Window */}
       <div className="md:col-span-8 flex flex-col bg-[#09090F]">
         <div className="p-4 border-b border-premium flex items-center justify-between bg-[#06060A]/60">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={activeChat.avatar}
-              className="w-8 h-8 rounded object-cover border border-premium"
+              className="w-8 h-8 rounded object-cover border border-premium flex-shrink-0"
               alt=""
             />
 
-            <div>
-              <h3 className="text-xs font-bold text-white">
+            <div className="min-w-0">
+              <h3 className="text-xs font-bold text-white truncate">
                 {activeChat.name}
               </h3>
 
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-slate-500 truncate">
                 {activeChat.role}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
 
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider hidden sm:inline">
               Sync Connection Secure
             </span>
           </div>
         </div>
 
+        {/* Message Container Layout Matrix */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col justify-end min-h-[400px]">
-          {activeChat.messages.map((msg) => {
+          {activeChat.messages?.map((msg) => {
             const isMe = msg.sender === "me";
 
             return (
@@ -132,22 +156,23 @@ const Messages = ({
           })}
         </div>
 
+        {/* Messaging Interface Core Compose Engine */}
         <form
-          onSubmit={handleSendMessage}
+          onSubmit={onSubmit}
           className="p-3 border-t border-premium bg-[#06060A]/80 flex items-center gap-2"
         >
           <input
             type="text"
-            value={typedMessage}
-            onChange={(e) => setTypedMessage(e.target.value)}
+            value={localTypedMessage}
+            onChange={(e) => setLocalTypedMessage(e.target.value)}
             placeholder={`Message ${activeChat.name}...`}
-            className="flex-1 h-9 px-3 text-xs input-solid rounded placeholder-slate-600 text-slate-200 bg-black/30"
+            className="flex-1 h-9 px-3 text-xs input-solid rounded placeholder-slate-600 text-slate-200 bg-black/30 outline-none focus:border-cyan-500/30 transition-colors"
           />
 
           <button
             type="submit"
-            disabled={!typedMessage.trim()}
-            className="h-9 w-9 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-black flex items-center justify-center rounded"
+            disabled={!localTypedMessage.trim()}
+            className="h-9 w-9 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 disabled:hover:bg-cyan-500 text-black flex items-center justify-center rounded transition-all flex-shrink-0"
           >
             <Send className="w-3.5 h-3.5" />
           </button>
