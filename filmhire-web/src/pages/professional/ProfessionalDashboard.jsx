@@ -449,8 +449,7 @@ useEffect(() => {
   };
 
   const currentFilteredJobs = getFilteredJobs();
-  const activeChatRoom = chatThreads.find((t) => t.id === selectedChatId);
-
+  
   useEffect(() => {
   fetchFeedJobs();
   fetchPosts();

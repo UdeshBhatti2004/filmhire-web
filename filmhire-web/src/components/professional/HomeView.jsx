@@ -140,78 +140,7 @@ const HomeView = ({
             </button>
           </div>
         </div>
-        {/* JOB OPPORTUNITIES */}
-        {/* JOB OPPORTUNITIES */}
-        <div className="space-y-4">
-          {feedJobs?.map((job) => (
-            <div
-              key={job.id}
-              className="bg-[#111116] border border-white/[0.06] hover:border-indigo-500/20 rounded-2xl p-5 transition-all duration-300"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 text-green-400 text-[10px] font-semibold uppercase tracking-wider mb-3">
-                    <BadgeCheck className="w-3 h-3" />
-                    Open Position
-                  </div>
-
-                  <h3 className="text-lg font-semibold text-white">
-                    {job.title}
-                  </h3>
-
-                  <div className="flex items-center gap-1.5 mt-2 text-xs text-neutral-500">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {job.location_text}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-[10px] uppercase text-neutral-500 mb-1">
-                    Budget
-                  </p>
-
-                  <div className="flex items-center justify-end gap-1 text-green-400 font-bold">
-                    <Wallet className="w-4 h-4" />
-                    <span>
-                      ₹{job.budget_min.toLocaleString()} - ₹
-                      {job.budget_max.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-sm text-neutral-300 mt-4 leading-relaxed line-clamp-3">
-                {job.description}
-              </p>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.05] text-xs text-neutral-400">
-                  <BadgeCheck className="w-3.5 h-3.5" />
-                  {job.category}
-                </div>
-
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.05] text-xs text-neutral-400">
-                  <Clock3 className="w-3.5 h-3.5" />
-                  {job.shoot_duration_hrs} hrs
-                </div>
-
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.05] text-xs text-neutral-400">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {new Date(job.shoot_date).toLocaleDateString()}
-                </div>
-              </div>
-
-              <div className="mt-5 pt-4 border-t border-white/[0.05] flex justify-end">
-                <button
-                  onClick={() => navigate(`/professional/jobs/${job.id}`)}
-                  className="h-10 px-5 rounded-xl bg-white text-black font-semibold text-sm hover:bg-neutral-200 transition-colors"
-                >
-                  View Opportunity
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+    
         {/* POSTS */}
         <div className="space-y-3">
           {homePosts.map((post) => (
@@ -302,7 +231,7 @@ const HomeView = ({
           </h4>
 
           <div className="space-y-3">
-            {feedJobs?.slice(0, 5).map((job) => (
+            {feedJobs?.slice(0, 3).map((job) => (
               <div
                 key={job.id}
                 className="border-b border-white/[0.04] pb-3 last:border-b-0"
