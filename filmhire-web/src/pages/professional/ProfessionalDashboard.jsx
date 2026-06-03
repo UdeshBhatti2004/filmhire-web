@@ -13,7 +13,10 @@ const ProfessionalDashboard = () => {
   const chatEndRef = useRef(null);
   const [feedJobs, setFeedJobs] = useState([]);
   const [applicationStatuses, setApplicationStatuses] = useState({});
-  const [appliedJobs, setAppliedJobs] = useState([]); 
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [comments, setComments] = useState({});
+  const [commentInputs, setCommentInputs] = useState({});
 
   const fetchFeedJobs = async () => {
     const { data, error } = await supabase
@@ -38,6 +41,82 @@ const ProfessionalDashboard = () => {
 
     setFeedJobs(data || []);
   };
+  const fetchComments = async (postId) => {
+  const { data, error } = await supabase
+    .from("professional_post_comments")
+    .select(`
+      *,
+      profile:profiles(
+        id,
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  setComments((prev) => ({
+    ...prev,
+    [postId]: data || [],
+  }));
+};
+  const handleAddComment = async (postId) => {
+  try {
+    const text = commentInputs[postId]?.trim();
+
+    if (!text) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("professional_post_comments")
+      .insert({
+        post_id: postId,
+        user_id: user.id,
+        comment: text,
+      });
+
+    if (error) throw error;
+
+    const post = homePosts.find((p) => p.id === postId);
+
+    await supabase
+      .from("professional_posts")
+      .update({
+        comments_count: (post.comments_count || 0) + 1,
+      })
+      .eq("id", postId);
+
+    setCommentInputs((prev) => ({
+      ...prev,
+      [postId]: "",
+    }));
+
+    setHomePosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              comments_count: (p.comments_count || 0) + 1,
+            }
+          : p
+      )
+    );
+
+    fetchComments(postId);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const fetchAppliedJobs = async () => {
     try {
@@ -72,7 +151,7 @@ const ProfessionalDashboard = () => {
   };
 
   const [currentTab, setCurrentTab] = useState("home");
-  const [jobsSubTab, setJobsSubTab] = useState("explore"); 
+  const [jobsSubTab, setJobsSubTab] = useState("explore");
   const [selectedJobView, setSelectedJobView] = useState(null);
   const [activeJobChatTarget, setActiveJobChatTarget] = useState(null);
 
@@ -101,6 +180,7 @@ const ProfessionalDashboard = () => {
   const [clientSearchQuery, setClientSearchQuery] = useState("");
   const [selectedChatId, setSelectedChatId] = useState(1);
   const [chatMessageInput, setChatMessageInput] = useState("");
+  const [expandedComments, setExpandedComments] = useState({});
 
   const [homePosts, setHomePosts] = useState([]);
 
@@ -161,12 +241,11 @@ const ProfessionalDashboard = () => {
     }
   }, [chatThreads, selectedChatId]);
 
-
-useEffect(() => {
-  if (feedJobs.length > 0 && !selectedJobView) {
-    setSelectedJobView(feedJobs[0]);
-  }
-}, [feedJobs]);
+  useEffect(() => {
+    if (feedJobs.length > 0 && !selectedJobView) {
+      setSelectedJobView(feedJobs[0]);
+    }
+  }, [feedJobs]);
 
   useEffect(() => {
     fetchProfile();
@@ -177,6 +256,8 @@ useEffect(() => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      setCurrentUserId(user.id);
 
       const { data, error } = await supabase
         .from("profiles")
@@ -192,19 +273,85 @@ useEffect(() => {
     }
   };
 
-  const handleLikePost = (postId) => {
-    setHomePosts((prev) =>
-      prev.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            likes: post.hasLiked ? post.likes - 1 : post.likes + 1,
-            hasLiked: !post.hasLiked,
-          };
-        }
-        return post;
-      }),
-    );
+  const handleLikePost = async (postId) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const post = homePosts.find((p) => p.id === postId);
+
+      if (!post) return;
+
+      // Unlike
+      if (post.hasLiked) {
+        const { error: deleteError } = await supabase
+          .from("professional_post_likes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id);
+
+        if (deleteError) throw deleteError;
+
+        const { error: updateError } = await supabase
+          .from("professional_posts")
+          .update({
+            likes_count: Math.max((post.likes_count || 0) - 1, 0),
+          })
+          .eq("id", postId);
+
+        if (updateError) throw updateError;
+
+        setHomePosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  hasLiked: false,
+                  likes_count: Math.max((p.likes_count || 0) - 1, 0),
+                }
+              : p,
+          ),
+        );
+      }
+
+      // Like
+      else {
+        const { error: insertError } = await supabase
+          .from("professional_post_likes")
+          .insert({
+            post_id: postId,
+            user_id: user.id,
+          });
+
+        if (insertError) throw insertError;
+
+        const { error: updateError } = await supabase
+          .from("professional_posts")
+          .update({
+            likes_count: (post.likes_count || 0) + 1,
+          })
+          .eq("id", postId);
+
+        if (updateError) throw updateError;
+
+        setHomePosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  hasLiked: true,
+                  likes_count: (p.likes_count || 0) + 1,
+                }
+              : p,
+          ),
+        );
+      }
+    } catch (err) {
+      console.error("Like error:", err);
+    }
   };
 
   const handleCreateHomePost = async () => {
@@ -366,13 +513,13 @@ useEffect(() => {
   };
 
   const getFilteredJobs = () => {
-  let list = feedJobs;
+    let list = feedJobs;
 
-  if (jobsSubTab === "saved") {
-    list = feedJobs.filter((j) => savedJobIds.includes(j.id));
-  } else if (jobsSubTab === "applied") {
-    list = appliedJobs;
-  }
+    if (jobsSubTab === "saved") {
+      list = feedJobs.filter((j) => savedJobIds.includes(j.id));
+    } else if (jobsSubTab === "applied") {
+      list = appliedJobs;
+    }
 
     if (activeJobCategory !== "all") {
       list = list.filter((j) => j.category === activeJobCategory);
@@ -383,21 +530,22 @@ useEffect(() => {
         j.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (j.client?.company_name || "")
           .toLowerCase()
-          .includes(searchQuery.toLowerCase())
+          .includes(searchQuery.toLowerCase()),
     );
   };
 
   const fetchAppliedJobsData = async () => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) return;
+      if (!user) return;
 
-    const { data, error } = await supabase
-      .from("job_applications")
-      .select(`
+      const { data, error } = await supabase
+        .from("job_applications")
+        .select(
+          `
         status,
         jobs (
           *,
@@ -408,36 +556,46 @@ useEffect(() => {
             company_name
           )
         )
-      `)
-      .eq("professional_id", user.id);
+      `,
+        )
+        .eq("professional_id", user.id);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const jobs =
-      data?.map((item) => ({
-        ...item.jobs,
-        applicationStatus: item.status,
-      })) || [];
+      const jobs =
+        data?.map((item) => ({
+          ...item.jobs,
+          applicationStatus: item.status,
+        })) || [];
 
-    setAppliedJobs(jobs);
-  } catch (err) {
-    console.error(err);
-  }
-};
+      setAppliedJobs(jobs);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchPosts = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const userId = user?.id;
+
     const { data, error } = await supabase
       .from("professional_posts")
       .select(
         `
-        *,
-        professional:profiles(
-          id,
-          full_name,
-          avatar_url,
-          specializations
-        )
-      `,
+      *,
+      professional:profiles(
+        id,
+        full_name,
+        avatar_url,
+        specializations
+      ),
+      professional_post_likes(
+        user_id
+      )
+    `,
       )
       .order("created_at", { ascending: false });
 
@@ -445,17 +603,94 @@ useEffect(() => {
       console.error(error);
       return;
     }
-    setHomePosts(data || []);
+
+    const postsWithLikes = (data || []).map((post) => ({
+      ...post,
+      hasLiked: post.professional_post_likes?.some(
+        (like) => like.user_id === userId,
+      ),
+    }));
+
+    setHomePosts(postsWithLikes);
   };
 
   const currentFilteredJobs = getFilteredJobs();
-  
-  useEffect(() => {
-  fetchFeedJobs();
-  fetchPosts();
-  fetchAppliedJobs();
-  fetchAppliedJobsData();
+
+useEffect(() => {
+  const channel = supabase
+    .channel("professional-posts")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "professional_posts",
+      },
+      (payload) => {
+        console.log("REALTIME PAYLOAD:", payload);
+
+        const updatedPost = payload.new;
+
+        if (!updatedPost) return;
+
+        setHomePosts((prev) =>
+          prev.map((post) =>
+            post.id === updatedPost.id
+              ? {
+                  ...post,
+                  likes_count: updatedPost.likes_count,
+                  comments_count: updatedPost.comments_count,
+                }
+              : post
+          )
+        );
+      }
+    )
+    .subscribe((status) => {
+      console.log("REALTIME STATUS:", status);
+    });
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }, []);
+
+useEffect(() => {
+  const channel = supabase
+    .channel("professional-comments")
+
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "professional_post_comments",
+      },
+      async (payload) => {
+        console.log("NEW COMMENT", payload);
+
+        const comment = payload.new;
+
+        // Only update if comments for this post are currently open
+        if (!expandedComments[comment.post_id]) return;
+
+        await fetchComments(comment.post_id);
+      }
+    )
+
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [expandedComments]);
+
+  useEffect(() => {
+    fetchFeedJobs();
+    fetchPosts();
+    fetchAppliedJobs();
+    fetchAppliedJobsData();
+  }, []);
 
   if (!profile) {
     return (
@@ -493,6 +728,14 @@ useEffect(() => {
             handleLikePost={handleLikePost}
             postMedia={postMedia}
             handlePostMediaChange={handlePostMediaChange}
+            expandedComments={expandedComments}
+            setExpandedComments={setExpandedComments}
+            comments={comments}
+            setComments={setComments}
+            commentInputs={commentInputs}
+            setCommentInputs={setCommentInputs}
+            fetchComments={fetchComments}
+            handleAddComment={handleAddComment}
           />
         )}
 
@@ -518,14 +761,14 @@ useEffect(() => {
 
         {currentTab === "messaging" && (
           <MessagingView
-  clientSearchQuery={clientSearchQuery}
-  setClientSearchQuery={setClientSearchQuery}
-  chatMessageInput={chatMessageInput}
-  setChatMessageInput={setChatMessageInput}
-  chatEndRef={chatEndRef}
-  activeJobChatTarget={activeJobChatTarget}
-  setActiveJobChatTarget={setActiveJobChatTarget}
-/>
+            clientSearchQuery={clientSearchQuery}
+            setClientSearchQuery={setClientSearchQuery}
+            chatMessageInput={chatMessageInput}
+            setChatMessageInput={setChatMessageInput}
+            chatEndRef={chatEndRef}
+            activeJobChatTarget={activeJobChatTarget}
+            setActiveJobChatTarget={setActiveJobChatTarget}
+          />
         )}
 
         {currentTab === "profile" && (

@@ -12,6 +12,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
 
 const HomeView = ({
   profile,
@@ -25,9 +26,18 @@ const HomeView = ({
   handleLikePost,
   postMedia,
   handlePostMediaChange,
+  setExpandedComments,
+  expandedComments,
+  comments,
+  setComments,
+  commentInputs,
+  setCommentInputs,
+  fetchComments,
+  handleAddComment
 }) => {
+  const navigate = useNavigate();
 
-  const navigate = useNavigate()
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
       {/* LEFT PROFILE CARD */}
@@ -140,7 +150,7 @@ const HomeView = ({
             </button>
           </div>
         </div>
-    
+
         {/* POSTS */}
         <div className="space-y-3">
           {homePosts.map((post) => (
@@ -208,16 +218,93 @@ const HomeView = ({
               <div className="flex items-center justify-between pt-2 border-t border-white/[0.04] text-[11px] text-neutral-400">
                 <button
                   onClick={() => handleLikePost(post.id)}
-                  className={`flex items-center gap-1.5 ${
-                    post.hasLiked ? "text-indigo-400" : ""
+                  className={`flex items-center gap-1.5 transition-colors ${
+                    post.hasLiked ? "text-indigo-400" : "hover:text-white"
                   }`}
                 >
-                  <ThumbsUp className="w-3.5 h-3.5" />
+                  <ThumbsUp
+                    className={`w-3.5 h-3.5 ${
+                      post.hasLiked ? "fill-current" : ""
+                    }`}
+                  />
                   <span>{post.likes_count} Likes</span>
                 </button>
 
-                <span>{post.comments_count} comments</span>
+                <button
+                  onClick={() => {
+  if (!expandedComments[post.id]) {
+    fetchComments(post.id);
+  }
+
+  setExpandedComments((prev) => ({
+    ...prev,
+    [post.id]: !prev[post.id],
+  }));
+}}
+                >
+                  {post.comments_count} comments
+                </button>
               </div>
+              {expandedComments[post.id] && (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+  type="text"
+  placeholder="Write a comment..."
+  value={commentInputs[post.id] || ""}
+  onChange={(e) =>
+    setCommentInputs((prev) => ({
+      ...prev,
+      [post.id]: e.target.value,
+    }))
+  }
+  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none"
+/>
+
+                   <button
+  onClick={() => handleAddComment(post.id)}
+  className="px-4 py-2 rounded-lg bg-indigo-500 text-white text-sm"
+>
+  Post
+</button>
+                  </div>
+
+                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+  {(comments[post.id] || []).length === 0 ? (
+    <div className="text-sm text-neutral-400">
+      No comments yet
+    </div>
+  ) : (
+    comments[post.id].map((comment) => (
+      <div
+        key={comment.id}
+        className="flex gap-3 p-2 rounded-lg bg-white/[0.02]"
+      >
+        <img
+          src={comment.profile?.avatar_url}
+          alt=""
+          className="w-8 h-8 rounded-full object-cover"
+        />
+
+        <div>
+          <p className="text-xs font-semibold text-white">
+            {comment.profile?.full_name}
+          </p>
+
+          <p className="text-sm text-neutral-300 mt-1">
+            {comment.comment}
+          </p>
+
+          <p className="text-[10px] text-neutral-500 mt-1">
+            {new Date(comment.created_at).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    ))
+  )}
+</div>
+                </div>
+              )}
             </div>
           ))}
         </div>
