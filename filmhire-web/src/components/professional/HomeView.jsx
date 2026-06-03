@@ -12,22 +12,123 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import { useEffect, useState } from "react";
 
 const HomeView = ({
   profile,
   feedJobs,
-  homePosts,
-  newPostText,
-  setNewPostText,
-  newPostTools,
-  setNewPostTools,
-  handleCreateHomePost,
-  handleLikePost,
-  postMedia,
-  handlePostMediaChange,
+  setCurrentTab,
 }) => {
 
   const navigate = useNavigate()
+
+const [newPostText, setNewPostText] = useState("");
+const [postMedia, setPostMedia] = useState(null);
+const [newPostTools, setNewPostTools] = useState("");
+const [homePosts, setHomePosts] = useState([]);
+
+
+useEffect(() => {
+  fetchPosts();
+}, []);
+
+
+const handlePostMediaChange = (e) => {
+    if (e.target.files?.[0]) {
+  setPostMedia(e.target.files[0]);
+}
+  };
+
+  const handleLikePost = (postId) => {
+    setHomePosts((prev) =>
+      prev.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            likes: post.hasLiked ? post.likes - 1 : post.likes + 1,
+            hasLiked: !post.hasLiked,
+          };
+        }
+        return post;
+      }),
+    );
+  };
+
+  const fetchPosts = async () => {
+      const { data, error } = await supabase
+        .from("professional_posts")
+        .select(
+          `
+          *,
+          professional:profiles(
+            id,
+            full_name,
+            avatar_url,
+            specializations
+          )
+        `,
+        )
+        .order("created_at", { ascending: false });
+  
+      if (error) {
+        console.error(error);
+        return;
+      }
+      setHomePosts(data || []);
+    };
+
+  
+    const handleCreateHomePost = async () => {
+      if (!newPostText.trim()) return;
+  
+      try {
+        let mediaUrl = null;
+  
+        if (postMedia) {
+          const fileExt = postMedia.name.split(".").pop();
+          const fileName = `${Date.now()}.${fileExt}`;
+          const filePath = `posts/${fileName}`;
+  
+          const { error: uploadError } = await supabase.storage
+            .from("post-media")
+            .upload(filePath, postMedia);
+  
+          if (uploadError) throw uploadError;
+  
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("post-media").getPublicUrl(filePath);
+  
+          mediaUrl = publicUrl;
+        }
+  
+        const toolsArray = newPostTools
+          .split(",")
+          .map((tool) => tool.trim())
+          .filter(Boolean);
+  
+        const { error } = await supabase.from("professional_posts").insert({
+          professional_id: profile.id,
+          content: newPostText,
+          media_url: mediaUrl,
+          tools: toolsArray,
+        });
+  
+        if (error) throw error;
+  
+        setNewPostText("");
+        setNewPostTools("");
+        setPostMedia(null);
+  
+        fetchPosts();
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    
+
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
       {/* LEFT PROFILE CARD */}
@@ -248,6 +349,12 @@ const HomeView = ({
               </div>
             ))}
           </div>
+            <button
+    onClick={() => setCurrentTab("jobs")}
+    className="w-full mt-4 text-xs bg-white/5 hover:bg-white/10 rounded-lg py-2"
+  >
+    View All Jobs
+  </button>
         </div>
       </aside>
     </div>

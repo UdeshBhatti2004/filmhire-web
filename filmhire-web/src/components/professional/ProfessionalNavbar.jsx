@@ -10,7 +10,6 @@ import {
 function ProfessionalNavbar({
   currentTab,
   setCurrentTab,
-  chatThreads = [],
 }) {
   return (
     <header className="w-full bg-[#111116] border-b border-white/[0.06] sticky top-0 z-50 h-14 px-4 sm:px-8 flex items-center justify-between">
@@ -46,10 +45,9 @@ function ProfessionalNavbar({
             icon: Briefcase,
           },
           {
-            id: "messaging",
-            label: "Messaging",
+            id: "workspaces",
+            label: "Workspaces",
             icon: MessageSquare,
-            badge: chatThreads.some((t) => t.unread),
           },
           {
             id: "profile",
@@ -77,9 +75,6 @@ function ProfessionalNavbar({
                   }`}
                 />
 
-                {navItem.badge && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-indigo-500 rounded-full" />
-                )}
               </div>
 
               <span className="text-[10px] tracking-tight mt-0.5 font-medium hidden md:inline-block">

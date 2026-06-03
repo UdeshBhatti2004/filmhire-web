@@ -7,13 +7,33 @@ import HomeView from "../../components/professional/HomeView";
 import UploadPortfolioModal from "../../components/professional/UploadPortfolioModal";
 import JobsView from "../../components/professional/JobsView";
 import ProfessionalNavbar from "../../components/professional/ProfessionalNavbar";
+import ProfessionalWorkspaceView from "../../components/professional/ProfessionalWorkspaceView";
+
 
 const ProfessionalDashboard = () => {
   const navigate = useNavigate();
-  const chatEndRef = useRef(null);
+ 
   const [feedJobs, setFeedJobs] = useState([]);
   const [applicationStatuses, setApplicationStatuses] = useState({});
   const [appliedJobs, setAppliedJobs] = useState([]); 
+
+    const [currentTab, setCurrentTab] = useState("home");
+  const [jobsSubTab, setJobsSubTab] = useState("explore"); 
+  const [selectedJobView, setSelectedJobView] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [savedJobIds, setSavedJobIds] = useState([]);
+  const [appliedJobIds, setAppliedJobIds] = useState([]);
+
+  const [profile, setProfile] = useState(null);
+  
+
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [newMediaTitle, setNewMediaTitle] = useState("");
+  const [newMediaType, setNewMediaType] = useState("image");
+  const [newMediaTech, setNewMediaTech] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
 
   const fetchFeedJobs = async () => {
     const { data, error } = await supabase
@@ -71,96 +91,7 @@ const ProfessionalDashboard = () => {
     }
   };
 
-  const [currentTab, setCurrentTab] = useState("home");
-  const [jobsSubTab, setJobsSubTab] = useState("explore"); 
-  const [selectedJobView, setSelectedJobView] = useState(null);
-  const [activeJobChatTarget, setActiveJobChatTarget] = useState(null);
-
-  const [newPostText, setNewPostText] = useState("");
-  const [postMedia, setPostMedia] = useState(null);
-
-  const handlePostMediaChange = (e) => {
-    if (e.target.files && e.target.files) {
-      setPostMedia(e.target.files);
-    }
-  };
-  const [newPostTools, setNewPostTools] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeJobCategory, setActiveJobCategory] = useState("all");
-  const [savedJobIds, setSavedJobIds] = useState(["JOB-884"]);
-  const [appliedJobIds, setAppliedJobIds] = useState([]);
-
-  const [profile, setProfile] = useState(null);
-
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [newMediaTitle, setNewMediaTitle] = useState("");
-  const [newMediaType, setNewMediaType] = useState("image");
-  const [newMediaTech, setNewMediaTech] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [clientSearchQuery, setClientSearchQuery] = useState("");
-  const [selectedChatId, setSelectedChatId] = useState(1);
-  const [chatMessageInput, setChatMessageInput] = useState("");
-
-  const [homePosts, setHomePosts] = useState([]);
-
-  const [chatThreads, setChatThreads] = useState([
-    {
-      id: 1,
-      clientName: "Marcus Vance (Vanguard Cinema)",
-      logo: "VC",
-      verified: true,
-      titleRole: "Talent Acquisition Director",
-      projectContext: "Summer Fashion Show Video Shoot",
-      time: "14m ago",
-      onlineStatus: "active",
-      messages: [
-        {
-          id: 101,
-          sender: "them",
-          text: "Hi Alex, our creative board spent the morning looking over your StarLume Studios portfolio node. The visual pacing is top-tier.",
-          timestamp: "10:24 AM",
-        },
-        {
-          id: 102,
-          sender: "them",
-          text: "Are you available to travel to Europe for this shoot or handle the tracking overlays completely remotely from your current desk framework?",
-          timestamp: "10:25 AM",
-        },
-      ],
-    },
-    {
-      id: 2,
-      clientName: "Sarah Finch (Nexus Indie Labs)",
-      logo: "NX",
-      verified: true,
-      titleRole: "Lead Technical Producer",
-      projectContext: "3D Fluid Simulation Project",
-      time: "2h ago",
-      onlineStatus: "away",
-      messages: [
-        {
-          id: 201,
-          sender: "me",
-          text: "Hey Sarah, dropped over my updated pipeline tests generated out of Houdini and mapped onto standard React Three Fiber viewports. Let me know what your engineer group thinks.",
-          timestamp: "Yesterday",
-        },
-        {
-          id: 202,
-          sender: "them",
-          text: "Wow, the liquid distortion is smooth. Let's block out 15 minutes to talk architecture constraints on Thursday morning.",
-          timestamp: "Yesterday",
-        },
-      ],
-    },
-  ]);
-
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [chatThreads, selectedChatId]);
-
+  
 
 useEffect(() => {
   if (feedJobs.length > 0 && !selectedJobView) {
@@ -192,73 +123,11 @@ useEffect(() => {
     }
   };
 
-  const handleLikePost = (postId) => {
-    setHomePosts((prev) =>
-      prev.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            likes: post.hasLiked ? post.likes - 1 : post.likes + 1,
-            hasLiked: !post.hasLiked,
-          };
-        }
-        return post;
-      }),
-    );
-  };
-
-  const handleCreateHomePost = async () => {
-    if (!newPostText.trim()) return;
-
-    try {
-      let mediaUrl = null;
-
-      if (postMedia) {
-        const fileExt = postMedia.name.split(".").pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `posts/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("post-media")
-          .upload(filePath, postMedia);
-
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("post-media").getPublicUrl(filePath);
-
-        mediaUrl = publicUrl;
-      }
-
-      const toolsArray = newPostTools
-        .split(",")
-        .map((tool) => tool.trim())
-        .filter(Boolean);
-
-      const { error } = await supabase.from("professional_posts").insert({
-        professional_id: profile.id,
-        content: newPostText,
-        media_url: mediaUrl,
-        tools: toolsArray,
-      });
-
-      if (error) throw error;
-
-      setNewPostText("");
-      setNewPostTools("");
-      setPostMedia(null);
-
-      fetchPosts();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files) {
-      const file = e.target.files;
-      setSelectedFile(file);
+    if (e.target.files?.[0]) {
+      const file = e.target.files?.[0];
+setSelectedFile(file);
       if (file.type.startsWith("video/")) setNewMediaType("video");
       else if (file.type.startsWith("image/")) setNewMediaType("image");
     }
@@ -320,38 +189,6 @@ useEffect(() => {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!chatMessageInput.trim()) return;
-    const now = new Date();
-    const formattedTime = now.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    setChatThreads((prev) =>
-      prev.map((thread) => {
-        if (thread.id === selectedChatId) {
-          return {
-            ...thread,
-            lastMessage: chatMessageInput,
-            time: "Just now",
-            messages: [
-              ...thread.messages,
-              {
-                id: Date.now(),
-                sender: "me",
-                text: chatMessageInput,
-                timestamp: formattedTime,
-              },
-            ],
-          };
-        }
-        return thread;
-      }),
-    );
-    setChatMessageInput("");
-  };
-
   const toggleSaveJob = (jobId, e) => {
     e.stopPropagation();
     if (savedJobIds.includes(jobId)) {
@@ -361,9 +198,10 @@ useEffect(() => {
     }
   };
 
-  const handleApplyJob = async () => {
-    await fetchAppliedJobs();
-  };
+ const refreshApplications = async () => {
+  await fetchAppliedJobs();
+  await fetchAppliedJobsData();
+};
 
   const getFilteredJobs = () => {
   let list = feedJobs;
@@ -374,9 +212,6 @@ useEffect(() => {
     list = appliedJobs;
   }
 
-    if (activeJobCategory !== "all") {
-      list = list.filter((j) => j.category === activeJobCategory);
-    }
 
     return list.filter(
       (j) =>
@@ -424,35 +259,10 @@ useEffect(() => {
     console.error(err);
   }
 };
-
-  const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from("professional_posts")
-      .select(
-        `
-        *,
-        professional:profiles(
-          id,
-          full_name,
-          avatar_url,
-          specializations
-        )
-      `,
-      )
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-    setHomePosts(data || []);
-  };
-
   const currentFilteredJobs = getFilteredJobs();
-  
+
   useEffect(() => {
   fetchFeedJobs();
-  fetchPosts();
   fetchAppliedJobs();
   fetchAppliedJobsData();
 }, []);
@@ -476,24 +286,16 @@ useEffect(() => {
       <ProfessionalNavbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
-        chatThreads={chatThreads}
+        
       />
 
       <div className="w-full max-w-[1200px] mx-auto px-4 lg:px-6 pt-5 flex-1">
         {currentTab === "home" && (
           <HomeView
-            profile={profile}
-            feedJobs={feedJobs}
-            homePosts={homePosts}
-            newPostText={newPostText}
-            setNewPostText={setNewPostText}
-            newPostTools={newPostTools}
-            setNewPostTools={setNewPostTools}
-            handleCreateHomePost={handleCreateHomePost}
-            handleLikePost={handleLikePost}
-            postMedia={postMedia}
-            handlePostMediaChange={handlePostMediaChange}
-          />
+  profile={profile}
+  feedJobs={feedJobs}
+  setCurrentTab={setCurrentTab}
+/>
         )}
 
         {currentTab === "jobs" && (
@@ -509,24 +311,15 @@ useEffect(() => {
             appliedJobIds={appliedJobIds}
             applicationStatuses={applicationStatuses}
             toggleSaveJob={toggleSaveJob}
-            handleApplyJob={handleApplyJob}
+            handleApplyJob={refreshApplications}
             currentFilteredJobs={currentFilteredJobs}
             setCurrentTab={setCurrentTab}
-            setActiveJobChatTarget={setActiveJobChatTarget}
           />
         )}
 
-        {currentTab === "messaging" && (
-          <MessagingView
-  clientSearchQuery={clientSearchQuery}
-  setClientSearchQuery={setClientSearchQuery}
-  chatMessageInput={chatMessageInput}
-  setChatMessageInput={setChatMessageInput}
-  chatEndRef={chatEndRef}
-  activeJobChatTarget={activeJobChatTarget}
-  setActiveJobChatTarget={setActiveJobChatTarget}
-/>
-        )}
+        {currentTab === "workspaces" && (
+  <ProfessionalWorkspaceView />
+)}
 
         {currentTab === "profile" && (
           <ProfileView
