@@ -28,7 +28,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase"; 
 import ClientNavbar from "../../components/client/ClientNavbar";
-import Applicants from "../../components/client/Applicants"
 
 // ==========================================
 // PLACEHOLDER INTERNAL SUB-COMPONENTS
@@ -81,28 +80,6 @@ const CreateJob = () => (
   </div>
 );
 
-const ClientDock = ({ activeView, setActiveView }) => (
-  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 dock-blur px-6 py-3 rounded-full flex items-center gap-6 z-50">
-    {[
-      { id: "talent-feed", label: "Talent Feed", icon: Compass },
-      { id: "applicants", label: "Applicants", icon: Users },
-      { id: "messages", label: "Messages", icon: MessageSquare },
-      { id: "create-job", label: "Post Job", icon: PlusCircle },
-    ].map((item) => {
-      const Icon = item.icon;
-      return (
-        <button
-          key={item.id}
-          onClick={() => setActiveView(item.id)}
-          className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${activeView === item.id ? "text-indigo-400" : "text-neutral-400 hover:text-neutral-200"}`}
-        >
-          <Icon className="w-4 h-4" />
-          <span className="hidden sm:inline">{item.label}</span>
-        </button>
-      );
-    })}
-  </div>
-);
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
@@ -162,17 +139,6 @@ const ClientDashboard = () => {
     { id: "B-2", position: "UE5 Generalist", studio: "Hibernate Studios", capital: "$8,000", applicants: 42 },
   ]);
 
-  const [applicants] = useState([
-    {
-      id: "APP-01",
-      name: "Marcus Vane",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop",
-      jobTitle: "Lead Colorist (ACES)",
-      role: "Senior Colorist",
-      matchScore: "96%",
-      status: "Reviewing",
-    },
-  ]);
 
   const [activeComments, setActiveComments] = useState({
     "POST-991": [
@@ -203,29 +169,6 @@ const ClientDashboard = () => {
     setTypedMessage("");
   };
 
-  const handleDirectRouteToChat = (candidateName, candidateAvatar) => {
-    const existingChat = conversations.find(
-      (c) => c.name.toLowerCase() === candidateName.toLowerCase(),
-    );
-
-    if (existingChat) {
-      setActiveChatId(existingChat.id);
-    } else {
-      const newId = `chat-${Date.now()}`;
-      const newChat = {
-        id: newId,
-        name: candidateName,
-        role: "Professional",
-        avatar: candidateAvatar,
-        messages: [
-          { id: 1, sender: "me", text: "Hi! Let's discuss your application profile.", time: "Just now" },
-        ],
-      };
-      setConversations([newChat, ...conversations]);
-      setActiveChatId(newId);
-    }
-    setActiveView("messages");
-  };
 
   const toggleLike = (id) => {
     setLikedPosts((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -277,20 +220,6 @@ const ClientDashboard = () => {
   // ==========================================
   const renderCenterContent = () => {
     switch (activeView) {
-      case "applicants":
-        // Find the renderCenterContent function inside ClientDashboard.jsx and update this block:
-case "applicants":
-  return (
-    <div className="w-full bg-[#09090e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-      <div className="p-5 border-b border-white/5 bg-white/[0.01]">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 font-mono">
-          Incoming Inbound Talents
-        </h3>
-      </div>
-      {/* Removed the mock static array prop so it relies cleanly on live data */}
-      <Applicants handleDirectRouteToChat={handleDirectRouteToChat} />
-    </div>
-  );
       case "messages":
         return (
           <MessagesView 
@@ -438,13 +367,7 @@ case "applicants":
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700;800&family=JetBrains+Mono:wght=400;500;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #040408; }
         .font-mono { font-family: 'JetBrains Mono', sans-serif; }
-        .dock-blur {
-          background: rgba(9, 9, 15, 0.85);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.05);
-        }
+  
       `}</style>
 
       <ClientNavbar />
@@ -467,16 +390,6 @@ case "applicants":
             </div>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-2 flex flex-col gap-1 backdrop-blur-xl shadow-xl">
-            <button onClick={() => { setActiveView("talent-feed"); setActiveFeedFilter("discover"); }} className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 text-left transition-all duration-200 ${activeView === "talent-feed" && activeFeedFilter === "discover" ? "bg-white/[0.06] text-white border border-white/[0.08]" : "text-neutral-400"}`}>
-              <Compass className="w-4 h-4 text-indigo-400" />
-              <span className="text-xs font-medium">Discover Feed</span>
-            </button>
-            <button onClick={() => setActiveView("applicants")} className={`w-full px-4 py-3 rounded-xl flex items-center gap-3 text-left transition-all duration-200 ${activeView === "applicants" ? "bg-white/[0.06] text-white border border-white/[0.08]" : "text-neutral-400"}`}>
-              <Users className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-medium">Applicants Pipeline</span>
-            </button>
-          </div>
         </aside>
 
         {/* CENTER HOUSING CONTAINER */}
@@ -485,8 +398,6 @@ case "applicants":
         </section>
       </div>
 
-      {/* Floating Dock layout */}
-      <ClientDock activeView={activeView} setActiveView={setActiveView} />
     </div>
   );
 };

@@ -12,7 +12,8 @@ const ProfessionalDashboard = () => {
   const navigate = useNavigate();
   const chatEndRef = useRef(null);
   const [feedJobs, setFeedJobs] = useState([]);
-  const [applicationStatuses, setApplicationStatuses] = useState({}); 
+  const [applicationStatuses, setApplicationStatuses] = useState({});
+  const [appliedJobs, setAppliedJobs] = useState([]); 
 
   const fetchFeedJobs = async () => {
     const { data, error } = await supabase
@@ -365,12 +366,13 @@ useEffect(() => {
   };
 
   const getFilteredJobs = () => {
-    let list = feedJobs;
-    if (jobsSubTab === "saved") {
-      list = feedJobs.filter((j) => savedJobIds.includes(j.id));
-    } else if (jobsSubTab === "applied") {
-      list = feedJobs.filter((j) => appliedJobIds.includes(j.id));
-    }
+  let list = feedJobs;
+
+  if (jobsSubTab === "saved") {
+    list = feedJobs.filter((j) => savedJobIds.includes(j.id));
+  } else if (jobsSubTab === "applied") {
+    list = appliedJobs;
+  }
 
     if (activeJobCategory !== "all") {
       list = list.filter((j) => j.category === activeJobCategory);
@@ -384,6 +386,44 @@ useEffect(() => {
           .includes(searchQuery.toLowerCase())
     );
   };
+
+  const fetchAppliedJobsData = async () => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("job_applications")
+      .select(`
+        status,
+        jobs (
+          *,
+          client:profiles!jobs_client_id_fkey(
+            id,
+            full_name,
+            avatar_url,
+            company_name
+          )
+        )
+      `)
+      .eq("professional_id", user.id);
+
+    if (error) throw error;
+
+    const jobs =
+      data?.map((item) => ({
+        ...item.jobs,
+        applicationStatus: item.status,
+      })) || [];
+
+    setAppliedJobs(jobs);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const fetchPosts = async () => {
     const { data, error } = await supabase
@@ -412,10 +452,11 @@ useEffect(() => {
   const activeChatRoom = chatThreads.find((t) => t.id === selectedChatId);
 
   useEffect(() => {
-    fetchFeedJobs();
-    fetchPosts();
-    fetchAppliedJobs();
-  }, []);
+  fetchFeedJobs();
+  fetchPosts();
+  fetchAppliedJobs();
+  fetchAppliedJobsData();
+}, []);
 
   if (!profile) {
     return (

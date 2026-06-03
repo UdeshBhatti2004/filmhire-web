@@ -16,7 +16,7 @@ import ProfessionalRoute from "./route/ProfessionalRoute";
 import ClientJobDetails from "./pages/client/JobDetails";
 import ProfessionalJobDetails from "./pages/professional/JobDetails";
 import { NotFoundPage } from "./pages/NotFound";
-
+import ApplicationsPage from "./pages/client/ApplicationsPage";
 
 
 function App() {
@@ -109,6 +109,16 @@ function App() {
   element={
     <ClientRoute>
       <ClientJobDetails />
+    </ClientRoute>
+  }
+/>
+
+
+<Route
+  path="/client/applications"
+  element={
+    <ClientRoute>
+      <ApplicationsPage />
     </ClientRoute>
   }
 />

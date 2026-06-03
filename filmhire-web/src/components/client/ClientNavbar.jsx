@@ -82,6 +82,7 @@ function ClientNavbar() {
 
         <button
           className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all"
+          onClick={() => navigate("/client/applications")}
         >
           Applicants
         </button>
