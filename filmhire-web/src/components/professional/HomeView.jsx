@@ -3,21 +3,21 @@ import {
   CheckCircle,
   ImageIcon,
   MoreHorizontal,
-  ShieldCheck,
   ThumbsUp,
   MapPin,
-  Calendar,
-  Wallet,
-  Clock3,
-  BadgeCheck,
+  MessageSquare,
+  Star,
+  Briefcase,
+  Layers,
+  Send,
+  Sparkles
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
 
 const HomeView = ({
-  profile,
-  feedJobs,
-  homePosts,
+  profile = {},
+  feedJobs = [],
+  homePosts = [],
   newPostText,
   setNewPostText,
   newPostTools,
@@ -27,111 +27,127 @@ const HomeView = ({
   postMedia,
   handlePostMediaChange,
   setExpandedComments,
-  expandedComments,
-  comments,
-  setComments,
-  commentInputs,
+  expandedComments = {},
+  comments = {},
+  commentInputs = {},
   setCommentInputs,
   fetchComments,
   handleAddComment
 }) => {
   const navigate = useNavigate();
 
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-      {/* LEFT PROFILE CARD */}
-      <aside className="lg:col-span-3 space-y-4">
-        <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden shadow-sm">
-          <div className="h-16 bg-gradient-to-br from-neutral-800 to-indigo-950" />
-
-          <div className="px-4 pb-4 relative text-center sm:text-left">
-            <img
-              src={profile.avatar_url}
-              alt={profile.full_name}
-              className="w-14 h-14 rounded-xl object-cover border-2 border-[#111116] absolute -top-7 left-4"
-            />
-
-            <div className="pt-9">
-              <h3 className="text-sm font-bold text-white flex items-center gap-1">
-                {profile.full_name}
-                <CheckCircle className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400/10" />
-              </h3>
-
-              <p className="text-[11px] text-indigo-300 mt-0.5 leading-tight">
-                {profile.specializations?.join(" • ")}
-              </p>
+    <div className="w-full bg-[#09090b] text-neutral-200 min-h-screen selection:bg-white selection:text-black antialiased flex justify-center">
+      
+      {/* GLOBAL FLUID CANVAS WRAPPER */}
+      <div className="w-full max-w-full grid grid-cols-1 lg:grid-cols-12 min-h-screen">
+        
+        {/* ================= LEFT CONTROLLER COLUMN ================= */}
+        <aside className="lg:col-span-3 bg-[#0d0d0f] border-r border-neutral-900/60 p-6 xl:p-8 space-y-6 hidden lg:block sticky top-0 h-screen overflow-y-auto">
+          
+          {/* PROFILE SUMMARY HUB */}
+          <div className="bg-[#121214] border border-neutral-800/60 rounded-2xl overflow-hidden shadow-xl">
+            <div className="h-20 bg-gradient-to-br from-neutral-900 via-indigo-950/30 to-neutral-900 relative">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff01_1px,transparent_1px)] bg-[size:16px_16px]" />
             </div>
 
-            <div className="mt-4 pt-3 border-t border-white/[0.05] text-[11px] space-y-2 text-neutral-400">
-              <div className="flex justify-between">
-                <span>Role</span>
-                <span className="text-indigo-400 capitalize">
-                  {profile.role}
-                </span>
+            <div className="px-5 pb-6 relative">
+              <div className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-950 border-4 border-[#121214] absolute -top-8 left-5 shadow-2xl">
+                <img
+                  src={profile.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&fit=crop"}
+                  alt={profile.full_name}
+                  className="w-full h-full object-cover select-none"
+                />
               </div>
 
-              <div className="flex justify-between">
-                <span>Location</span>
-                <span className="text-neutral-300">{profile.city}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Rating</span>
-                <span className="text-neutral-300">
-                  {profile.avg_rating || 0}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Reviews</span>
-                <span className="text-neutral-300">
-                  {profile.total_reviews || 0}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* CENTER FEED */}
-      <main className="lg:col-span-6 space-y-4">
-        <div className="bg-[#111116] border border-white/[0.06] rounded-xl p-4 space-y-3">
-          <div className="flex gap-3">
-            <img
-              src={profile.avatar_url}
-              alt="Me"
-              className="w-9 h-9 rounded-lg object-cover"
-            />
-
-            <div className="flex-1 space-y-2">
-              <textarea
-                placeholder="Showcase your latest work, project, reel, edit, or collaboration request..."
-                value={newPostText}
-                onChange={(e) => setNewPostText(e.target.value)}
-                className="w-full bg-[#181822] border border-white/[0.06] rounded-lg p-3 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500/40 resize-none h-20 placeholder:text-neutral-500"
-              />
-
-              <input
-                type="text"
-                placeholder="Tools used (Premiere Pro, DaVinci Resolve, Blender...)"
-                value={newPostTools}
-                onChange={(e) => setNewPostTools(e.target.value)}
-                className="w-full bg-[#181822] border border-white/[0.06] rounded-md h-7 px-3 text-[11px] text-neutral-200 outline-none focus:border-indigo-500/30 placeholder:text-neutral-600"
-              />
-              {postMedia && (
-                <p className="text-[11px] text-green-400">
-                  Selected: {postMedia.name}
+              <div className="pt-11 space-y-1">
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5 tracking-tight">
+                  {profile.full_name || "Anonymous Member"}
+                  <CheckCircle className="w-3.5 h-3.5 text-indigo-400 fill-indigo-500/10" />
+                </h3>
+                <p className="text-[11px] text-neutral-400 font-medium tracking-wide truncate">
+                  {profile.specializations?.join(" • ") || "Creative Arts"}
                 </p>
-              )}
+              </div>
+
+              {/* QUICK METRICS SHEET */}
+              <div className="mt-5 pt-4 border-t border-neutral-900 text-[11px] space-y-3 font-medium text-neutral-400">
+                <div className="flex justify-between items-center">
+                  <span className="text-neutral-500">Platform Account</span>
+                  <span className="text-indigo-300 capitalize text-[10px] bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md font-bold tracking-wide">
+                    {profile.role || "Professional"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-neutral-500 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-neutral-600" /> Location
+                  </span>
+                  <span className="text-neutral-200">{profile.city || "Remote"}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-neutral-500 flex items-center gap-1.5">
+                    <Star className="w-3.5 h-3.5 text-neutral-600" /> Rank Metric
+                  </span>
+                  <span className="text-neutral-200 font-mono bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded">
+                    {Number(profile.avg_rating || 0).toFixed(1)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-2 border-t border-white/[0.04]">
-            <div className="flex gap-2 text-neutral-400 text-[11px]">
-              <label className="flex items-center gap-1 hover:text-neutral-200 px-2 py-1 rounded bg-white/[0.02] border border-white/[0.04] cursor-pointer">
-                <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-                Media
+          {/* ADD COMPACT EXTRA NAVIGATION INTERFACES HERE IF NEEDED TO FILL SPACE */}
+          <div className="pt-2 text-[11px] text-neutral-600">
+            <p>© 2026 Professional Guild network infrastructure. All rights reserved.</p>
+          </div>
+        </aside>
+
+        {/* ================= CENTER STREAM STREAM FEED ================= */}
+        <main className="col-span-1 lg:col-span-6 px-4 py-6 md:p-8 space-y-6 lg:h-screen lg:overflow-y-auto scrollbar-none">
+          
+          {/* COMPOSER / POST EDITOR INTERFACE */}
+          <div className="bg-[#121214] border border-neutral-900 rounded-2xl p-5 space-y-4 shadow-xl">
+            <div className="flex gap-4 items-start">
+              <img
+                src={profile.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop"}
+                alt="Me"
+                className="w-10 h-10 rounded-xl object-cover border border-neutral-800 shrink-0 select-none"
+              />
+
+              <div className="flex-1 space-y-3">
+                <textarea
+                  placeholder="Share a production insight, portfolio item update, or creative request..."
+                  value={newPostText}
+                  onChange={(e) => setNewPostText(e.target.value)}
+                  className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-neutral-700/80 rounded-xl p-3.5 text-xs text-neutral-200 focus:outline-none transition-colors resize-none h-24 placeholder:text-neutral-500 leading-relaxed"
+                />
+
+                <div className="relative flex items-center">
+                  <Layers className="w-3.5 h-3.5 text-neutral-600 absolute left-3" />
+                  <input
+                    type="text"
+                    placeholder="Pipeline workflow specs (e.g., DaVinci Resolve...)"
+                    value={newPostTools}
+                    onChange={(e) => setNewPostTools(e.target.value)}
+                    className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-neutral-700/80 rounded-xl h-9 pl-9 pr-4 text-xs text-neutral-200 outline-none transition-colors placeholder:text-neutral-600"
+                  />
+                </div>
+                
+                {postMedia && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-emerald-400 text-xs font-mono">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Staged asset: {postMedia.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-neutral-900">
+              <label className="flex items-center gap-2 hover:text-neutral-100 px-3 h-9 rounded-xl bg-neutral-900/60 border border-neutral-900 hover:border-neutral-800 cursor-pointer select-none text-xs font-medium transition-all active:scale-[0.98]">
+                <ImageIcon className="w-4 h-4 text-indigo-400" />
+                <span>Attach Asset</span>
                 <input
                   type="file"
                   accept="image/*,video/*"
@@ -139,204 +155,212 @@ const HomeView = ({
                   className="hidden"
                 />
               </label>
-            </div>
 
-            <button
-              onClick={handleCreateHomePost}
-              disabled={!newPostText.trim()}
-              className="h-7 bg-white text-black font-bold text-xs px-4 rounded hover:bg-neutral-200 disabled:opacity-40"
-            >
-              Post Update
-            </button>
-          </div>
-        </div>
-
-        {/* POSTS */}
-        <div className="space-y-3">
-          {homePosts.map((post) => (
-            <div
-              key={post.id}
-              className="bg-[#111116] border border-white/[0.06] rounded-xl p-4 space-y-3"
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex gap-3">
-                  <img
-                    src={post.professional?.avatar_url}
-                    alt="Avatar"
-                    className="w-9 h-9 rounded-lg object-cover bg-neutral-800"
-                  />
-
-                  <div>
-                    <h4 className="text-xs font-bold text-white flex items-center gap-1">
-                      {post.professional?.full_name}
-                    </h4>
-
-                    <p className="text-[10px] text-neutral-400">
-                      {post.professional?.specializations?.join(" • ")}
-                    </p>
-
-                    <p className="text-[9px] text-neutral-500 mt-0.5">
-                      {new Date(post.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-
-                <MoreHorizontal className="w-4 h-4 text-neutral-500" />
-              </div>
-
-              <p className="text-xs text-neutral-300 leading-relaxed whitespace-pre-wrap">
-                {post.content}
-              </p>
-
-              {post.media_url && (
-                <div className="rounded-lg overflow-hidden border border-white/[0.04]">
-                  <img
-                    src={post.media_url}
-                    alt="Post"
-                    className="w-full object-cover"
-                  />
-                </div>
-              )}
-
-              {post.tools?.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-black/20 rounded-md border border-white/[0.02]">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">
-                    Pipeline Dependencies:
-                  </span>
-
-                  {post.tools.map((tech, idx) => (
-                    <span
-                      key={idx}
-                      className="text-[10px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/10 px-1.5 py-0.5 rounded font-mono"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-2 border-t border-white/[0.04] text-[11px] text-neutral-400">
-                <button
-                  onClick={() => handleLikePost(post.id)}
-                  className={`flex items-center gap-1.5 transition-colors ${
-                    post.hasLiked ? "text-indigo-400" : "hover:text-white"
-                  }`}
-                >
-                  <ThumbsUp
-                    className={`w-3.5 h-3.5 ${
-                      post.hasLiked ? "fill-current" : ""
-                    }`}
-                  />
-                  <span>{post.likes_count} Likes</span>
-                </button>
-
-                <button
-                  onClick={() => {
-  if (!expandedComments[post.id]) {
-    fetchComments(post.id);
-  }
-
-  setExpandedComments((prev) => ({
-    ...prev,
-    [post.id]: !prev[post.id],
-  }));
-}}
-                >
-                  {post.comments_count} comments
-                </button>
-              </div>
-              {expandedComments[post.id] && (
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <input
-  type="text"
-  placeholder="Write a comment..."
-  value={commentInputs[post.id] || ""}
-  onChange={(e) =>
-    setCommentInputs((prev) => ({
-      ...prev,
-      [post.id]: e.target.value,
-    }))
-  }
-  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none"
-/>
-
-                   <button
-  onClick={() => handleAddComment(post.id)}
-  className="px-4 py-2 rounded-lg bg-indigo-500 text-white text-sm"
->
-  Post
-</button>
-                  </div>
-
-                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-  {(comments[post.id] || []).length === 0 ? (
-    <div className="text-sm text-neutral-400">
-      No comments yet
-    </div>
-  ) : (
-    comments[post.id].map((comment) => (
-      <div
-        key={comment.id}
-        className="flex gap-3 p-2 rounded-lg bg-white/[0.02]"
-      >
-        <img
-          src={comment.profile?.avatar_url}
-          alt=""
-          className="w-8 h-8 rounded-full object-cover"
-        />
-
-        <div>
-          <p className="text-xs font-semibold text-white">
-            {comment.profile?.full_name}
-          </p>
-
-          <p className="text-sm text-neutral-300 mt-1">
-            {comment.comment}
-          </p>
-
-          <p className="text-[10px] text-neutral-500 mt-1">
-            {new Date(comment.created_at).toLocaleString()}
-          </p>
-        </div>
-      </div>
-    ))
-  )}
-</div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </main>
-
-      {/* RIGHT SIDEBAR */}
-      <aside className="lg:col-span-3 space-y-4 hidden lg:block">
-        <div className="bg-[#111116] border border-white/[0.06] rounded-xl p-4">
-          <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wide mb-4">
-            Open Opportunities
-          </h4>
-
-          <div className="space-y-3">
-            {feedJobs?.slice(0, 3).map((job) => (
-              <div
-                key={job.id}
-                className="border-b border-white/[0.04] pb-3 last:border-b-0"
+              <button
+                onClick={handleCreateHomePost}
+                disabled={!newPostText.trim()}
+                className="h-9 bg-white text-black font-semibold text-xs px-5 rounded-xl hover:bg-neutral-200 transition-all disabled:opacity-20 disabled:hover:bg-white active:scale-[0.98]"
               >
-                <p className="text-sm text-white font-medium">{job.title}</p>
+                Publish Post
+              </button>
+            </div>
+          </div>
 
-                <p className="text-xs text-neutral-500 mt-1">
-                  {job.location_text}
+          {/* TIMELINE TIMELINE STACK CONTAINER */}
+          <div className="space-y-5">
+            {homePosts.map((post) => (
+              <article
+                key={post.id}
+                className="bg-[#121214] border border-neutral-900 rounded-2xl p-5 space-y-4 shadow-lg"
+              >
+                {/* HEADER METADATA METRICS */}
+                <div className="flex justify-between items-start">
+                  <div className="flex gap-3">
+                    <img
+                      src={post.professional?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop"}
+                      alt="Avatar"
+                      className="w-10 h-10 rounded-xl object-cover bg-neutral-900 border border-neutral-900 select-none"
+                    />
+
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
+                        {post.professional?.full_name}
+                      </h4>
+                      <p className="text-[10px] font-medium text-neutral-400 tracking-wide">
+                        {post.professional?.specializations?.join(" • ") || "Creative Guild"}
+                      </p>
+                      <p className="text-[9px] text-neutral-500 font-mono">
+                        {new Date(post.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button className="text-neutral-500 hover:text-neutral-300 p-1.5 hover:bg-neutral-900 rounded-xl transition-colors">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* POST BODY DESCRIPTION */}
+                <p className="text-xs text-neutral-300 leading-relaxed whitespace-pre-wrap font-sans font-normal">
+                  {post.content}
                 </p>
 
-                <p className="text-xs text-green-400 mt-1">
-                  ₹{job.budget_min} - ₹{job.budget_max}
-                </p>
-              </div>
+                {/* ATTACHED MEDIA PREVIEW IMAGE */}
+                {post.media_url && (
+                  <div className="rounded-xl overflow-hidden border border-neutral-900 bg-neutral-950 max-h-[420px] flex items-center justify-center">
+                    <img
+                      src={post.media_url}
+                      alt="Uploaded network asset"
+                      className="w-full h-full object-cover max-h-[420px]"
+                    />
+                  </div>
+                )}
+
+                {/* PIPELINE CAPABILITIES DEPS */}
+                {post.tools?.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 p-2 bg-neutral-950/40 rounded-xl border border-neutral-900/60">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-500 pl-1">
+                      Pipeline Tech:
+                    </span>
+                    {post.tools.map((tech, idx) => (
+                      <span
+                        key={idx}
+                        className="text-[10px] font-medium font-mono bg-neutral-900 text-neutral-300 border border-neutral-800 px-2 py-0.5 rounded-md"
+                      >
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* TIMELINE CONTROLLERS PERFORMANCE */}
+                <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs font-semibold text-neutral-400">
+                  <button
+                    onClick={() => handleLikePost(post.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-neutral-900 transition-all active:scale-95 ${
+                      post.hasLiked ? "text-white bg-neutral-900" : "hover:text-neutral-100"
+                    }`}
+                  >
+                    <ThumbsUp className={`w-4 h-4 ${post.hasLiked ? "fill-white text-black" : "stroke-[1.8]"}`} />
+                    <span>{post.likes_count} Likes</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (!expandedComments[post.id]) {
+                        fetchComments(post.id);
+                      }
+                      setExpandedComments((prev) => ({
+                        ...prev,
+                        [post.id]: !prev[post.id],
+                      }));
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-neutral-900 hover:text-neutral-100 transition-all active:scale-95 ${
+                      expandedComments[post.id] ? "text-white bg-neutral-900" : ""
+                    }`}
+                  >
+                    <MessageSquare className="w-4 h-4 stroke-[1.8]" />
+                    <span>{post.comments_count} Feedback</span>
+                  </button>
+                </div>
+
+                {/* EXPANDED FEEDBACK SYSTEM */}
+                {expandedComments[post.id] && (
+                  <div className="pt-3 border-t border-neutral-900/50 space-y-4">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Write constructive portfolio feedback..."
+                        value={commentInputs[post.id] || ""}
+                        onChange={(e) =>
+                          setCommentInputs((prev) => ({
+                            ...prev,
+                            [post.id]: e.target.value,
+                          }))
+                        }
+                        className="flex-1 bg-neutral-950/50 border border-neutral-900 focus:border-neutral-800 rounded-xl h-9 px-3.5 text-xs text-neutral-200 outline-none transition-colors placeholder:text-neutral-600 font-sans"
+                      />
+
+                      <button
+                        onClick={() => handleAddComment(post.id)}
+                        disabled={!(commentInputs[post.id] || "").trim()}
+                        className="h-9 shortcut-square rounded-xl bg-neutral-900 border border-neutral-800 px-3 text-neutral-300 hover:text-white hover:bg-neutral-800 flex items-center justify-center transition-all active:scale-95 disabled:opacity-20"
+                      >
+                        <Send className="w-3.5 h-3.5 stroke-[2.2]" />
+                      </button>
+                    </div>
+
+                    {/* THREAD SUB-LIST STACK */}
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
+                      {(comments[post.id] || []).length === 0 ? (
+                        <div className="text-[11px] text-neutral-500 italic py-4 text-center">
+                          No portfolio review notes posted on this update yet.
+                        </div>
+                      ) : (
+                        comments[post.id].map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="flex gap-3 p-3 rounded-xl bg-neutral-950/40 border border-neutral-900/40 items-start"
+                          >
+                            <img
+                              src={comment.profile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&fit=crop"}
+                              alt=""
+                              className="w-7 h-7 rounded-lg object-cover bg-neutral-900 shrink-0 select-none"
+                            />
+
+                            <div className="space-y-1 flex-1 min-w-0">
+                              <div className="flex justify-between items-baseline gap-4">
+                                <p className="text-xs font-bold text-white truncate tracking-tight">
+                                  {comment.profile?.full_name}
+                                </p>
+                                <p className="text-[9px] text-neutral-500 font-mono shrink-0">
+                                  {new Date(comment.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                </p>
+                              </div>
+
+                              <p className="text-xs text-neutral-300 leading-relaxed font-sans font-normal break-words">
+                                {comment.comment}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </article>
             ))}
           </div>
-        </div>
-      </aside>
+        </main>
+
+        {/* ================= RIGHT MARKET OPPORTUNITIES PANEL ================= */}
+        <aside className="lg:col-span-3 bg-[#0d0d0f] border-l border-neutral-900/60 p-6 xl:p-8 space-y-4 hidden lg:block sticky top-0 h-screen overflow-y-auto">
+          <div className="bg-[#121214] border border-neutral-900 rounded-2xl p-5 shadow-xl space-y-4">
+            <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
+              <Briefcase className="w-3.5 h-3.5 text-neutral-500" /> Active Openings
+            </h4>
+
+            <div className="space-y-3.5 divide-y divide-neutral-900">
+              {feedJobs?.slice(0, 4).map((job) => (
+                <div key={job.id} className="pt-3.5 first:pt-0 group cursor-pointer">
+                  <p className="text-xs font-bold text-neutral-200 group-hover:text-white transition-colors tracking-tight line-clamp-1">
+                    {job.title}
+                  </p>
+
+                  <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">
+                    {job.location_text || "Remote Placement"}
+                  </p>
+
+                  <p className="text-[10px] font-semibold text-emerald-400/90 font-mono mt-1.5 bg-emerald-500/[0.04] border border-emerald-500/10 px-2 py-0.5 rounded w-max">
+                    ₹{Number(job.budget_min).toLocaleString("en-IN")} - ₹{Number(job.budget_max).toLocaleString("en-IN")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+      </div>
     </div>
   );
 };
