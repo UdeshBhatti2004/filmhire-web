@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   FolderKanban,
@@ -16,24 +16,114 @@ const [messages, setMessages] = useState([]);
 const [messageInput, setMessageInput] = useState("");
 
 
+  const [unreadCounts, setUnreadCounts] = useState({});
+
+
+const chatEndRef = useRef(null);
 
 useEffect(() => {
   getCurrentUser();
 }, []);
 
-const getCurrentUser = async () => {
+useEffect(() => {
+  chatEndRef.current?.scrollIntoView({
+    behavior: "smooth",
+  });
+}, [messages]);
+
+
+useEffect(() => {
+  if (!selectedWorkspace?.id) return;
+
+  const channel = supabase
+    .channel(`messages-${selectedWorkspace.id}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      },
+      (payload) => {
+        const newMessage = payload.new;
+
+       if (newMessage.job_id === selectedWorkspace.id) {
+  setMessages((prev) => [...prev, newMessage]);
+}
+
+fetchWorkspaces();
+
+if (newMessage.receiver_id === currentUser?.id) {
+  fetchUnreadCounts(currentUser.id);
+}
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [selectedWorkspace]);
+
+    const fetchUnreadCounts = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("job_id")
+      .eq("receiver_id", userId)
+      .eq("read", false);
+
+    if (error) throw error;
+
+    const counts = {};
+
+    data?.forEach((msg) => {
+      counts[msg.job_id] = (counts[msg.job_id] || 0) + 1;
+    });
+
+    setUnreadCounts(counts);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+    const getCurrentUser = async () => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   setCurrentUser(user);
+
+  if (user) {
+    fetchUnreadCounts(user.id);
+  }
+};
+
+const markMessagesAsRead = async (jobId) => {
+  if (!currentUser) return;
+
+  try {
+    const { error } = await supabase
+      .from("messages")
+      .update({ read: true })
+      .eq("job_id", jobId)
+      .eq("receiver_id", currentUser.id)
+      .eq("read", false);
+
+    if (error) throw error;
+
+    await fetchUnreadCounts(currentUser.id);
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 useEffect(() => {
   if (selectedWorkspace?.id) {
     fetchMessages(selectedWorkspace.id);
+    markMessagesAsRead(selectedWorkspace.id);
   }
-}, [selectedWorkspace]);
+}, [selectedWorkspace,currentUser]);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -71,11 +161,42 @@ useEffect(() => {
           ...item.jobs,
         })) || [];
 
-      setWorkspaces(jobs);
+   const jobsWithLastMessage = await Promise.all(
+  jobs.map(async (job) => {
+    const { data: lastMessageData } = await supabase
+      .from("messages")
+      .select("content, created_at")
+      .eq("job_id", job.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (jobs.length > 0) {
-        setSelectedWorkspace(jobs[0]);
-      }
+    return {
+  ...job,
+  lastMessage:
+    lastMessageData?.content || "No messages yet",
+  lastMessageAt:
+    lastMessageData?.created_at || null,
+};
+  })
+);
+
+
+ jobsWithLastMessage.sort((a, b) => {
+  if (!a.lastMessageAt) return 1;
+  if (!b.lastMessageAt) return -1;
+
+  return (
+    new Date(b.lastMessageAt) -
+    new Date(a.lastMessageAt)
+  );
+});
+
+setWorkspaces(jobsWithLastMessage);
+
+if (!selectedWorkspace && jobsWithLastMessage.length > 0) {
+  setSelectedWorkspace(jobsWithLastMessage[0]);
+}
     } catch (err) {
       console.error(err);
     }
@@ -123,11 +244,11 @@ const handleSendMessage = async () => {
 
     setMessageInput("");
 
-    fetchMessages(selectedWorkspace.id);
   } catch (err) {
     console.error(err);
   }
 };
+
 
   return (
     <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden h-[650px] flex">
@@ -153,14 +274,21 @@ const handleSendMessage = async () => {
                   : "hover:bg-white/[0.02]"
               }`}
             >
-              <p className="text-sm text-white font-medium">
-                {job.title}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-white font-medium">
+                  {job.title}
+                </p>
 
-              <p className="text-xs text-neutral-400 mt-1">
-                {job.client?.company_name ||
-                  job.client?.full_name}
-              </p>
+  {unreadCounts[job.id] > 0 && (
+    <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+      {unreadCounts[job.id]}
+    </span>
+  )}
+</div>
+
+              <p className="text-xs text-neutral-400 mt-1 truncate">
+  {job.lastMessage}
+</p>
             </button>
           ))}
         </div>
@@ -264,8 +392,14 @@ const handleSendMessage = async () => {
     </h3>
   </div>
 
-  <div className="flex-1 overflow-y-auto p-4 space-y-3">
-    {messages.map((msg) => {
+  <div className="flex-1 overflow-y-auto p-4">
+  {messages.length === 0 ? (
+    <div className="h-full flex items-center justify-center text-neutral-500 text-sm">
+      Start your conversation here
+    </div>
+  ) : (
+<div className="space-y-3">
+      {messages.map((msg) => {
       const isMine =
         msg.sender_id === currentUser?.id;
 
@@ -279,18 +413,31 @@ const handleSendMessage = async () => {
           }`}
         >
           <div
-            className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
-              isMine
-                ? "bg-indigo-600 text-white"
-                : "bg-[#181822] text-neutral-200"
-            }`}
-          >
-            {msg.content}
-          </div>
+  className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
+    isMine
+      ? "bg-indigo-600 text-white"
+      : "bg-[#181822] text-neutral-200"
+  }`}
+>
+  <div>{msg.content}</div>
+
+  <div className="text-[10px] mt-1 opacity-70">
+    {new Date(msg.created_at).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+  </div>
+</div>
         </div>
       );
     })}
+      <div ref={chatEndRef} />
+
   </div>
+  )}
+</div>
+
+  
 
   <div className="p-3 border-t border-white/[0.06] flex gap-2">
     <input

@@ -17,6 +17,7 @@ import ClientJobDetails from "./pages/client/JobDetails";
 import ProfessionalJobDetails from "./pages/professional/JobDetails";
 import { NotFoundPage } from "./pages/NotFound";
 import ApplicationsPage from "./pages/client/ApplicationsPage";
+import ClientWorkspacePage from "./pages/client/ClientWorkspacePage";
 
 
 function App() {
@@ -119,6 +120,15 @@ function App() {
   element={
     <ClientRoute>
       <ApplicationsPage />
+    </ClientRoute>
+  }
+/>
+
+<Route
+  path="/client/workspaces"
+  element={
+    <ClientRoute>
+      <ClientWorkspacePage />
     </ClientRoute>
   }
 />
