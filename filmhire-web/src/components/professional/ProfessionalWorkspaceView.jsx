@@ -14,12 +14,16 @@ function ProfessionalWorkspaceView() {
   const [currentUser, setCurrentUser] = useState(null);
 const [messages, setMessages] = useState([]);
 const [messageInput, setMessageInput] = useState("");
+const [typingUser, setTypingUser] = useState(null);
 
 
   const [unreadCounts, setUnreadCounts] = useState({});
 
 
 const chatEndRef = useRef(null);
+
+
+const typingTimeoutRef = useRef(null);
 
 useEffect(() => {
   getCurrentUser();
@@ -40,30 +44,65 @@ useEffect(() => {
     .on(
       "postgres_changes",
       {
-        event: "INSERT",
+        event: "*",
         schema: "public",
         table: "messages",
       },
       (payload) => {
-        const newMessage = payload.new;
+  const newMessage = payload.new;
 
-       if (newMessage.job_id === selectedWorkspace.id) {
-  setMessages((prev) => [...prev, newMessage]);
+  if (payload.eventType === "INSERT") {
+    if (newMessage.job_id === selectedWorkspace.id) {
+      setMessages((prev) => [...prev, newMessage]);
+    }
+
+    fetchWorkspaces();
+
+    if (newMessage.receiver_id === currentUser?.id) {
+      fetchUnreadCounts(currentUser.id);
+    }
+  }
+
+  if (payload.eventType === "UPDATE") {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === newMessage.id ? newMessage : msg
+      )
+    );
+  }
 }
-
-fetchWorkspaces();
-
-if (newMessage.receiver_id === currentUser?.id) {
-  fetchUnreadCounts(currentUser.id);
-}
-      }
     )
+    .on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "typing_status",
+  },
+  async (payload) => {
+    const typingData = payload.new;
+
+    if (
+      typingData.workspace_id === selectedWorkspace.id &&
+      typingData.user_id !== currentUser?.id
+    ) {
+      if (typingData.is_typing) {
+  setTypingUser(
+    selectedWorkspace.client?.company_name ||
+      selectedWorkspace.client?.full_name
+  );
+} else {
+  setTypingUser(null);
+}
+    }
+  }
+)
     .subscribe();
 
   return () => {
     supabase.removeChannel(channel);
   };
-}, [selectedWorkspace]);
+}, [selectedWorkspace,currentUser]);
 
     const fetchUnreadCounts = async (userId) => {
   try {
@@ -218,6 +257,41 @@ if (!selectedWorkspace && jobsWithLastMessage.length > 0) {
   }
 };
 
+const handleTyping = async (value) => {
+  setMessageInput(value);
+
+    console.log("typing...");
+
+
+  if (!selectedWorkspace || !currentUser) return;
+
+  const { data, error } = await supabase
+  .from("typing_status")
+  .upsert({
+    workspace_id: selectedWorkspace.id,
+    user_id: currentUser.id,
+    is_typing: true,
+    updated_at: new Date().toISOString(),
+  })
+  .select();
+
+console.log("UPSERT RESULT:", JSON.stringify(data, null, 2));
+console.log("UPSERT ERROR:", error);
+
+  clearTimeout(typingTimeoutRef.current);
+
+  typingTimeoutRef.current = setTimeout(async () => {
+    await supabase
+      .from("typing_status")
+      .upsert({
+        workspace_id: selectedWorkspace.id,
+        user_id: currentUser.id,
+        is_typing: false,
+        updated_at: new Date().toISOString(),
+      });
+  }, 2000);
+};
+
 
 const handleSendMessage = async () => {
   if (
@@ -243,6 +317,18 @@ const handleSendMessage = async () => {
     if (error) throw error;
 
     setMessageInput("");
+
+    const { data } = await supabase
+  .from("typing_status")
+  .upsert({
+    workspace_id: selectedWorkspace.id,
+    user_id: currentUser.id,
+    is_typing: true,
+    updated_at: new Date().toISOString(),
+  })
+  .select();
+
+console.log("typing true", data, error);
 
   } catch (err) {
     console.error(err);
@@ -421,16 +507,36 @@ const handleSendMessage = async () => {
 >
   <div>{msg.content}</div>
 
-  <div className="text-[10px] mt-1 opacity-70">
+  <div className="text-[10px] mt-1 opacity-70 flex items-center gap-1">
+  <span>
     {new Date(msg.created_at).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     })}
-  </div>
+  </span>
+
+ {isMine && (
+  <span
+    className={`text-[11px] font-semibold ${
+      msg.read
+        ? "text-sky-400"
+        : "text-neutral-400"
+    }`}
+  >
+    {msg.read ? "✓✓" : "✓"}
+  </span>
+)}
+</div>
 </div>
         </div>
       );
     })}
+    {typingUser && (
+  <div className="text-xs text-neutral-400 italic">
+    {typingUser} is typing...
+  </div>
+)}
+
       <div ref={chatEndRef} />
 
   </div>
@@ -444,7 +550,7 @@ const handleSendMessage = async () => {
       type="text"
       value={messageInput}
       onChange={(e) =>
-        setMessageInput(e.target.value)
+  handleTyping(e.target.value)
       }
       onKeyDown={(e) =>
         e.key === "Enter" &&
