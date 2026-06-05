@@ -5,12 +5,11 @@ function ProfessionalNavbar({ currentTab, setCurrentTab, chatThreads = [] }) {
   const navItems = [
     { id: "home", label: "Home Feed", icon: Compass },
     { id: "jobs", label: "Job Board", icon: Briefcase },
-    {
-      id: "messaging",
-      label: "Messages",
-      icon: MessageSquare,
-      badge: chatThreads.some((t) => t.unread),
-    },
+   {
+  id: "workspaces",
+  label: "Workspaces",
+  icon: MessageSquare,
+},
     { id: "profile", label: "My Profile", icon: User },
   ];
 
@@ -45,8 +44,8 @@ function ProfessionalNavbar({ currentTab, setCurrentTab, chatThreads = [] }) {
 
 
       {/* CENTER: CORE NAV INTERFACE */}
-      <nav className="flex flex-col gap-1.5 w-full px-2">
-        {navItems.map((item) => {
+<nav className="flex flex-col gap-1.5 w-full px-2 items-center">
+          {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
           return (
@@ -76,9 +75,9 @@ function ProfessionalNavbar({ currentTab, setCurrentTab, chatThreads = [] }) {
 )}
 </button>
 
-<div className="absolute left-full ...">
+{/* <div className="absolute left-full ...">
   {item.label}
-</div>
+</div> */}
 
 </div>
           );

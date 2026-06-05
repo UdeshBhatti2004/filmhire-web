@@ -20,20 +20,22 @@ const HomeView = ({
   profile,
   feedJobs,
   setCurrentTab,
+  expandedComments,
+  setExpandedComments,
+  comments,
+  commentInputs,
+  setCommentInputs,
+  fetchComments,
+  handleAddComment,
+  homePosts,
+  handleLikePost
 }) => {
-
 
   const navigate = useNavigate()
 
 const [newPostText, setNewPostText] = useState("");
 const [postMedia, setPostMedia] = useState(null);
 const [newPostTools, setNewPostTools] = useState("");
-const [homePosts, setHomePosts] = useState([]);
-
-
-useEffect(() => {
-  fetchPosts();
-}, []);
 
 
 const handlePostMediaChange = (e) => {
@@ -41,45 +43,6 @@ const handlePostMediaChange = (e) => {
   setPostMedia(e.target.files[0]);
 }
   };
-
-  const handleLikePost = (postId) => {
-    setHomePosts((prev) =>
-      prev.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            likes: post.hasLiked ? post.likes - 1 : post.likes + 1,
-            hasLiked: !post.hasLiked,
-          };
-        }
-        return post;
-      }),
-    );
-  };
-
-  const fetchPosts = async () => {
-      const { data, error } = await supabase
-        .from("professional_posts")
-        .select(
-          `
-          *,
-          professional:profiles(
-            id,
-            full_name,
-            avatar_url,
-            specializations
-          )
-        `,
-        )
-        .order("created_at", { ascending: false });
-  
-      if (error) {
-        console.error(error);
-        return;
-      }
-      setHomePosts(data || []);
-    };
-
   
     const handleCreateHomePost = async () => {
       if (!newPostText.trim()) return;
@@ -423,15 +386,41 @@ const handlePostMediaChange = (e) => {
                 )}
               </article>
             ))}
-                    </div>
+                              </div>
+        </main>
 
-          <button
-            onClick={() => setCurrentTab("jobs")}
-            className="w-full mt-4 text-xs bg-white/5 hover:bg-white/10 rounded-lg py-2"
-          >
-            View All Jobs
-          </button>
-                </main>
+        <aside className="hidden lg:block lg:col-span-3 p-6 space-y-4 border-l border-neutral-900">
+  <div className="flex items-center justify-between">
+    <h3 className="text-sm font-semibold text-white">
+      Recent Jobs
+    </h3>
+
+    <button
+      onClick={() => setCurrentTab("jobs")}
+      className="text-xs text-neutral-400 hover:text-white"
+    >
+      View All
+    </button>
+  </div>
+
+  <div className="space-y-3">
+    {feedJobs.slice(0, 3).map((job) => (
+      <div
+        key={job.id}
+        className="bg-[#121214] border border-neutral-900 rounded-xl p-3 cursor-pointer hover:border-neutral-800"
+        onClick={() => setCurrentTab("jobs")}
+      >
+        <h4 className="text-sm text-white font-medium truncate">
+          {job.title}
+        </h4>
+
+        <p className="text-xs text-neutral-500 mt-1 truncate">
+          {job.client?.company_name || "Client"}
+        </p>
+      </div>
+    ))}
+  </div>
+</aside>
 
       </div>
     </div>

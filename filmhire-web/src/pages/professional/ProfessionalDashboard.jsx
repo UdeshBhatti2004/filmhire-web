@@ -566,8 +566,6 @@ setSelectedFile(file);
     setHomePosts(postsWithLikes);
   };
 
-  const currentFilteredJobs = getFilteredJobs();
-
   useEffect(() => {
     const channel = supabase
       .channel("professional-posts")
@@ -666,10 +664,19 @@ setSelectedFile(file);
 
       <div className="w-full max-w-full mx-auto px-4 lg:px-6 pt-5 flex-1">
         {currentTab === "home" && (
-          <HomeView
+ <HomeView
   profile={profile}
   feedJobs={feedJobs}
   setCurrentTab={setCurrentTab}
+  expandedComments={expandedComments}
+  setExpandedComments={setExpandedComments}
+  comments={comments}
+  commentInputs={commentInputs}
+  setCommentInputs={setCommentInputs}
+  fetchComments={fetchComments}
+  handleAddComment={handleAddComment}
+  homePosts={homePosts}
+  handleLikePost={handleLikePost}
 />
 
         )}
