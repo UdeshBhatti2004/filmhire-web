@@ -13,6 +13,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import { useEffect, useState } from "react";
 
 const HomeView = ({
   profile = {},
@@ -32,9 +34,15 @@ const HomeView = ({
   commentInputs = {},
   setCommentInputs,
   fetchComments,
-  handleAddComment
+  handleAddComment,
+  setCurrentTab,
+    isPosting,
 }) => {
   const navigate = useNavigate();
+
+
+    
+
 
   return (
     <div className="w-full bg-[#09090b] text-neutral-200 min-h-screen selection:bg-white selection:text-black antialiased flex justify-center">
@@ -157,12 +165,12 @@ const HomeView = ({
               </label>
 
               <button
-                onClick={handleCreateHomePost}
-                disabled={!newPostText.trim()}
-                className="h-9 bg-white text-black font-semibold text-xs px-5 rounded-xl hover:bg-neutral-200 transition-all disabled:opacity-20 disabled:hover:bg-white active:scale-[0.98]"
-              >
-                Publish Post
-              </button>
+  onClick={handleCreateHomePost}
+  disabled={!newPostText.trim() || isPosting}
+  className="h-9 bg-white text-black font-semibold text-xs px-5 rounded-xl hover:bg-neutral-200 transition-all disabled:opacity-20 disabled:hover:bg-white active:scale-[0.98]"
+>
+  {isPosting ? "Publishing..." : "Publish Post"}
+</button>
             </div>
           </div>
 
@@ -331,36 +339,14 @@ const HomeView = ({
               </article>
             ))}
           </div>
-        </main>
-
-        {/* ================= RIGHT MARKET OPPORTUNITIES PANEL ================= */}
-        <aside className="lg:col-span-3 bg-[#0d0d0f] border-l border-neutral-900/60 p-6 xl:p-8 space-y-4 hidden lg:block sticky top-0 h-screen overflow-y-auto">
-          <div className="bg-[#121214] border border-neutral-900 rounded-2xl p-5 shadow-xl space-y-4">
-            <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-2">
-              <Briefcase className="w-3.5 h-3.5 text-neutral-500" /> Active Openings
-            </h4>
-
-            <div className="space-y-3.5 divide-y divide-neutral-900">
-              {feedJobs?.slice(0, 4).map((job) => (
-                <div key={job.id} className="pt-3.5 first:pt-0 group cursor-pointer">
-                  <p className="text-xs font-bold text-neutral-200 group-hover:text-white transition-colors tracking-tight line-clamp-1">
-                    {job.title}
-                  </p>
-
-                  <p className="text-[11px] text-neutral-500 mt-0.5 font-medium">
-                    {job.location_text || "Remote Placement"}
-                  </p>
-
-                  <p className="text-[10px] font-semibold text-emerald-400/90 font-mono mt-1.5 bg-emerald-500/[0.04] border border-emerald-500/10 px-2 py-0.5 rounded w-max">
-                    ₹{Number(job.budget_min).toLocaleString("en-IN")} - ₹{Number(job.budget_max).toLocaleString("en-IN")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-      </div>
+          </main>
+            <button
+    onClick={() => setCurrentTab("jobs")}
+    className="w-full mt-4 text-xs bg-white/5 hover:bg-white/10 rounded-lg py-2"
+  >
+    View All Jobs
+  </button>
+        </div>
     </div>
   );
 };

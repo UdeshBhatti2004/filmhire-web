@@ -84,10 +84,14 @@ const CreateJob = () => (
 const ClientDashboard = () => {
   const navigate = useNavigate();
 
+  const [currentUserId, setCurrentUserId] = useState(null);
+
   // Basic Navigation View States
   const [activeView, setActiveView] = useState("talent-feed");
   const [activeFeedFilter, setActiveFeedFilter] = useState("discover");
   const [isChatExpanded, setIsChatExpanded] = useState(false);
+
+  const [feedPosts, setFeedPosts] = useState([]);
 
   // Functional Inputs
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,36 +121,63 @@ const ClientDashboard = () => {
     },
   ]);
 
-  const [feedPosts] = useState([
-    {
-      id: "POST-991",
-      studioName: "StarLume Studios",
-      avatar: "SL",
-      timestamp: "2 hours ago",
-      type: "Production Brief",
-      title: "Virtual Horizon Modular Stages",
-      image: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1000&auto=format&fit=crop",
-      location: "Vancouver, BC",
-      budget: "$12,000",
-      likes: 42,
-      description: "Developing cross-platform pipeline tools for real-time camera tracking optimization setups in high-end volume sets.",
-      tags: ["UnrealEngine", "VirtualProduction", "ICVFX"],
-    },
-  ]);
 
   const [activeBriefs] = useState([
     { id: "B-1", position: "Lead ACES Colorist", studio: "Hibernate Studios", capital: "$4,500", applicants: 24 },
     { id: "B-2", position: "UE5 Generalist", studio: "Hibernate Studios", capital: "$8,000", applicants: 42 },
   ]);
 
-
-  const [activeComments, setActiveComments] = useState({
-    "POST-991": [
-      { id: 1, user: "Sasha Grey", role: "Tech Director", text: "Are you running this pipeline on dual-node configurations?" },
-    ],
-  });
-
   const activeChat = conversations.find((c) => c.id === activeChatId) || conversations;
+
+  const fetchFeedPosts = async () => {
+    if (!currentUserId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("professional_posts")
+        .select(`
+          *,
+          professional:profiles(
+            id,
+            full_name,
+            avatar_url,
+            specializations
+          ),
+          professional_post_likes(
+            user_id
+          ),
+          professional_post_comments(
+            id,
+            comment,
+            created_at,
+            user:profiles(
+              full_name,
+              role
+            )
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const postsWithCounts = (data || []).map((post) => ({
+        ...post,
+        likes_count: post.professional_post_likes?.length || 0,
+        comments_count: post.professional_post_comments?.length || 0,
+        hasLiked: post.professional_post_likes?.some(
+          (like) => like.user_id === currentUserId
+        ),
+        // Sort sequential logs chronologically by oldest first 
+        professional_post_comments: post.professional_post_comments?.sort(
+          (a, b) => new Date(a.created_at) - new Date(b.created_at)
+        ) || []
+      }));
+
+      setFeedPosts(postsWithCounts);
+    } catch (err) {
+      console.error("Error fetching feed:", err);
+    }
+  };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -169,6 +200,70 @@ const ClientDashboard = () => {
     setTypedMessage("");
   };
 
+  const handleLikePost = async (postId) => {
+    try {
+      const post = feedPosts.find((p) => p.id === postId);
+      if (!post || !currentUserId) return;
+
+      if (post.hasLiked) {
+        // 1. Optimistic UI update for Unlike
+        setFeedPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  hasLiked: false,
+                  likes_count: Math.max((p.likes_count || 0) - 1, 0),
+                }
+              : p
+          )
+        );
+
+        // 2. Database Transactions
+        const { error } = await supabase
+          .from("professional_post_likes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", currentUserId);
+
+        if (error) throw error;
+
+        await supabase
+          .from("professional_posts")
+          .update({ likes_count: Math.max((post.likes_count || 0) - 1, 0) })
+          .eq("id", postId);
+
+      } else {
+        // 1. Optimistic UI update for Like
+        setFeedPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  hasLiked: true,
+                  likes_count: (p.likes_count || 0) + 1,
+                }
+              : p
+          )
+        );
+
+        // 2. Database Transactions
+        const { error } = await supabase
+          .from("professional_post_likes")
+          .insert({ post_id: postId, user_id: currentUserId });
+
+        if (error) throw error;
+
+        await supabase
+          .from("professional_posts")
+          .update({ likes_count: (post.likes_count || 0) + 1 })
+          .eq("id", postId);
+      }
+    } catch (err) {
+      console.error("Like error:", err);
+      fetchFeedPosts();
+    }
+  };
 
   const toggleLike = (id) => {
     setLikedPosts((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -182,25 +277,52 @@ const ClientDashboard = () => {
     setVisibleComments((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handlePostComment = (postId) => {
-    if (!commentInputs[postId]?.trim()) return;
-    const newComment = {
-      id: Date.now(),
-      user: "Hibernate Studios",
-      role: "Client / Producer",
-      text: commentInputs[postId].trim(),
-    };
-    setActiveComments((prev) => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), newComment],
-    }));
-    setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+  const handlePostComment = async (postId) => {
+    const commentText = commentInputs[postId]?.trim();
+
+    if (!commentText || !currentUserId) return;
+
+    try {
+      setCommentInputs((prev) => ({
+        ...prev,
+        [postId]: "",
+      }));
+
+      const { error } = await supabase
+        .from("professional_post_comments")
+        .insert({
+          post_id: postId,
+          user_id: currentUserId,
+          comment: commentText,
+        });
+
+      if (error) throw error;
+
+      const post = feedPosts.find((p) => p.id === postId);
+
+      await supabase
+        .from("professional_posts")
+        .update({
+          comments_count: (post?.comments_count || 0) + 1,
+        })
+        .eq("id", postId);
+
+    } catch (err) {
+      console.error("Error writing comment to database:", err);
+    }
   };
 
   useEffect(() => {
     const checkAccess = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+      setCurrentUserId(user.id);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -210,10 +332,52 @@ const ClientDashboard = () => {
 
       if (profile?.role !== "client") {
         navigate("/professional/dashboard");
+        return;
       }
     };
+
     checkAccess();
   }, [navigate]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      fetchFeedPosts();
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel("client-post-feed")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "professional_posts",
+        },
+        () => {
+          fetchFeedPosts();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "professional_post_comments",
+        },
+        () => {
+          fetchFeedPosts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
 
   // ==========================================
   // VIEW RENDER CONDITIONAL SWITCH
@@ -248,114 +412,154 @@ const ClientDashboard = () => {
               <SlidersHorizontal className="w-4 h-4 text-neutral-400 hover:text-white cursor-pointer transition-colors" />
             </div>
 
-            {feedPosts.map((post) => (
-              <article
-                key={post.id}
-                className="bg-gradient-to-b from-white/[0.04] to-white/[0.01] border border-white/[0.06] rounded-3xl overflow-hidden shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.1]"
-              >
-                <div className="p-5 flex items-center justify-between border-b border-white/[0.04]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 border border-white/[0.08] flex items-center justify-center font-bold text-xs text-neutral-200 shadow-inner">
-                      {post.avatar}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-xs font-semibold text-neutral-200 hover:text-indigo-400 cursor-pointer transition-colors">
-                          {post.studioName}
-                        </h3>
-                        <span className="w-1 h-1 rounded-full bg-white/[0.2]" />
-                        <span className="text-[10px] text-neutral-500 font-medium">
-                          {post.timestamp}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono text-indigo-400/70 font-medium tracking-wider uppercase mt-0.5 block">
-                        {post.id}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-semibold tracking-wider uppercase px-3 py-1 bg-white/[0.04] border border-white/[0.06] text-neutral-300 rounded-full">
-                    {post.type}
-                  </span>
-                </div>
+           {feedPosts.map((post) => (
+  <article
+    key={post.id}
+    className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden transition-all duration-200 hover:border-zinc-700/80 m-4 max-w-2xl mx-auto"
+  >
+    {/* Header Section */}
+    <div className="p-4 flex items-center justify-between">
+      <div 
+        onClick={() => navigate(`/profile/${post.professional?.id}`)}
+        className="flex items-center gap-3 cursor-pointer group"
+      >
+        <img
+          src={post.professional?.avatar_url || "https://ui-avatars.com/api/?name=User"}
+          alt=""
+          className="w-9 h-9 rounded-full object-cover bg-zinc-800 border border-zinc-700/50"
+        />
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium text-zinc-200 group-hover:text-indigo-400 transition-colors">
+              {post.professional?.full_name || "Professional"}
+            </h3>
+            <span className="w-1 h-1 rounded-full bg-zinc-600" />
+            <span className="text-xs text-zinc-500">
+              {new Date(post.created_at).toLocaleDateString()}
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            {post.professional?.specializations || "Creative"}
+          </p>
+        </div>
+      </div>
+    </div>
 
-                <div className="relative aspect-[16/9] w-full bg-neutral-950 overflow-hidden group select-none">
-                  <img src={post.image} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#050507] via-[#050507]/20 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-5 left-5 right-5 space-y-2">
-                    <h2 className="text-xl font-bold font-display text-white tracking-tight drop-shadow-lg">{post.title}</h2>
-                    <div className="flex flex-wrap gap-2 text-[10px]">
-                      <span className="bg-black/40 backdrop-blur-md border border-white/[0.08] px-2.5 py-1 rounded-lg text-neutral-300 flex items-center gap-1.5 shadow-md">
-                        <MapPin className="w-3.5 h-3.5 text-neutral-400" /> {post.location}
-                      </span>
-                      <span className="bg-indigo-500/15 backdrop-blur-md border border-indigo-500/30 px-2.5 py-1 rounded-lg text-indigo-300 font-semibold flex items-center gap-1.5 shadow-md">
-                        <DollarSign className="w-3.5 h-3.5" /> {post.budget}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+    {/* Media Body */}
+    <div className="relative aspect-[16/9] w-full bg-zinc-950 border-y border-zinc-800">
+      {post.media_url?.match(/\.(mp4|webm|mov)$/i) ? (
+        <video
+          src={post.media_url}
+          controls
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <img
+          src={post.media_url}
+          alt=""
+          className="w-full h-full object-cover"
+        />
+      )}
+    </div>
 
-                <div className="p-5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/[0.04] pb-4">
-                    <div className="flex items-center gap-6 text-neutral-400">
-                      <button onClick={() => toggleLike(post.id)} className={`flex items-center gap-2 text-xs font-medium transition-all ${likedPosts[post.id] ? "text-rose-500 scale-105" : "hover:text-neutral-200"}`}>
-                        <Heart className={`w-4 h-4 transition-colors ${likedPosts[post.id] ? "fill-rose-500 text-rose-500" : ""}`} />
-                        <span className="font-mono">{likedPosts[post.id] ? post.likes + 1 : post.likes}</span>
-                      </button>
-                      <button onClick={() => toggleCommentSection(post.id)} className="flex items-center gap-2 text-xs font-medium hover:text-neutral-200 transition-colors">
-                        <MessageSquare className="w-4 h-4 text-neutral-400" />
-                        <span className="font-mono">{activeComments[post.id]?.length || 0} Notes</span>
-                      </button>
-                    </div>
-                    <button onClick={() => toggleSave(post.id)} className={`transition-all ${savedPosts[post.id] ? "text-indigo-400 scale-105" : "text-neutral-400 hover:text-white"}`}>
-                      <Bookmark className={`w-4 h-4 ${savedPosts[post.id] ? "fill-indigo-400 text-indigo-400" : ""}`} />
-                    </button>
-                  </div>
+    {/* Content & Action Tray */}
+    <div className="p-4 space-y-3.5">
+      {/* Interaction Buttons */}
+      <div className="flex items-center justify-between text-zinc-400">
+        <div className="flex items-center gap-5">
+          <button
+            onClick={() => handleLikePost(post.id)}
+            className={`flex items-center gap-1.5 text-sm transition-colors ${
+              post.hasLiked ? "text-rose-500 font-medium" : "hover:text-zinc-200"
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${post.hasLiked ? "fill-rose-500" : ""}`} />
+            <span>{post.likes_count || 0}</span>
+          </button>
 
-                  <p className="text-xs text-neutral-400 leading-relaxed font-light">
-                    <span className="font-semibold text-neutral-200 mr-2">{post.studioName}</span>
-                    {post.description}
-                  </p>
+          <button
+            onClick={() => toggleCommentSection(post.id)}
+            className={`flex items-center gap-1.5 text-sm transition-colors ${
+              visibleComments[post.id] ? "text-indigo-400 font-medium" : "hover:text-zinc-200"
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>{post.comments_count || 0}</span>
+          </button>
+        </div>
 
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {post.tags.map((tag, idx) => (
-                      <span key={idx} className="text-[10px] text-indigo-400 bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/10 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
+        <button
+          onClick={() => toggleSave(post.id)}
+          className={`transition-colors ${
+            savedPosts[post.id] ? "text-indigo-400" : "hover:text-zinc-200"
+          }`}
+        >
+          <Bookmark className={`w-4 h-4 ${savedPosts[post.id] ? "fill-indigo-400" : ""}`} />
+        </button>
+      </div>
 
-                  {visibleComments[post.id] && (
-                    <div className="bg-black/40 rounded-2xl p-4 border border-white/[0.05] mt-4 space-y-4 shadow-inner">
-                      <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-                        {activeComments[post.id]?.map((cmt) => (
-                          <div key={cmt.id} className="text-xs space-y-1 border-l-2 border-white/[0.08] pl-3 py-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-neutral-300">{cmt.user}</span>
-                              <span className="text-[9px] font-mono tracking-wider px-1.5 py-0.5 bg-white/[0.04] text-neutral-500 rounded border border-white/[0.06] uppercase font-medium">{cmt.role}</span>
-                            </div>
-                            <p className="text-neutral-400 font-light leading-relaxed">{cmt.text}</p>
-                          </div>
-                        ))}
-                      </div>
+      {/* Post Text Description */}
+      <div className="space-y-2">
+        <p className="text-sm text-zinc-300 leading-relaxed">
+          <span className="font-medium text-zinc-200 mr-2">
+            {post.professional?.full_name || "Professional"}
+          </span>
+          {post.content}
+        </p>
 
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="text"
-                          placeholder="Add production notes..."
-                          value={commentInputs[post.id] || ""}
-                          onChange={(e) => setCommentInputs((p) => ({ ...p, [post.id]: e.target.value }))}
-                          onKeyDown={(e) => e.key === "Enter" && handlePostComment(post.id)}
-                          className="flex-1 h-10 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all font-light"
-                        />
-                        <button onClick={() => handlePostComment(post.id)} className="h-10 w-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20 transition-all active:scale-95">
-                          <Send className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </article>
+        {post.tools && post.tools.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {post.tools.map((tool, idx) => (
+              <span key={idx} className="text-xs text-indigo-400 hover:underline cursor-pointer">
+                #{tool}
+              </span>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Clean, Non-intrusive Comments Section */}
+      {visibleComments[post.id] && (
+        <div className="pt-4 border-t border-zinc-800 space-y-4">
+          <div className="max-h-60 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+            {post.professional_post_comments?.map((cmt) => (
+              <div key={cmt.id} className="text-sm flex gap-2 items-start">
+                <span className="font-medium text-zinc-200 whitespace-nowrap">
+                  {cmt.user?.full_name || "Anonymous"}:
+                </span>
+                <span className="text-zinc-400 break-words flex-1">{cmt.comment}</span>
+              </div>
+            ))}
+
+            {(!post.professional_post_comments || post.professional_post_comments.length === 0) && (
+              <p className="text-xs text-zinc-500 py-2">No comments yet. Be the first to reply.</p>
+            )}
+          </div>
+
+          {/* Inline Input Box */}
+          <div className="flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <input
+              type="text"
+              placeholder="Add a comment..."
+              value={commentInputs[post.id] || ""}
+              onChange={(e) =>
+                setCommentInputs((p) => ({ ...p, [post.id]: e.target.value }))
+              }
+              onKeyDown={(e) => e.key === "Enter" && handlePostComment(post.id)}
+              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-700 transition-colors"
+            />
+            <button
+              onClick={() => handlePostComment(post.id)}
+              className="text-xs text-indigo-400 font-medium hover:text-indigo-300 px-2 py-1 transition-colors"
+            >
+              Post
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  </article>
+))}
           </>
         );
     }
@@ -367,7 +571,6 @@ const ClientDashboard = () => {
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700;800&family=JetBrains+Mono:wght=400;500;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #040408; }
         .font-mono { font-family: 'JetBrains Mono', sans-serif; }
-  
       `}</style>
 
       <ClientNavbar />
@@ -389,7 +592,6 @@ const ClientDashboard = () => {
               <span className="font-mono text-xs font-medium text-indigo-300 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20 shadow-sm">2 Live</span>
             </div>
           </div>
-
         </aside>
 
         {/* CENTER HOUSING CONTAINER */}
@@ -397,7 +599,6 @@ const ClientDashboard = () => {
           {renderCenterContent()}
         </section>
       </div>
-
     </div>
   );
 };

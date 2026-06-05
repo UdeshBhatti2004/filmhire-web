@@ -30,14 +30,13 @@ function ClientNavbar() {
       </div>
 
       <nav className="hidden lg:flex items-center gap-1 bg-white/[0.02] p-1 rounded-xl border border-white/[0.06] backdrop-blur-md">
-        
+
         <button
           onClick={() => navigate("/client/dashboard")}
-          className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
-            isDashboardActive
+          className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${isDashboardActive
               ? "bg-white/[0.07] border border-white/[0.08] text-white shadow-xl"
               : "text-neutral-400 hover:text-neutral-200"
-          }`}
+            }`}
         >
           Dashboard
         </button>
@@ -45,11 +44,10 @@ function ClientNavbar() {
         <div className="relative">
           <button
             onClick={() => setShowJobsMenu((prev) => !prev)}
-            className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1 ${
-              isJobsActive
+            className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1 ${isJobsActive
                 ? "bg-white/[0.07] border border-white/[0.08] text-white shadow-xl"
                 : "text-neutral-400 hover:text-neutral-200"
-            }`}
+              }`}
           >
             Jobs
             <ChevronDown className="w-3 h-3" />
@@ -85,6 +83,13 @@ function ClientNavbar() {
           onClick={() => navigate("/client/applications")}
         >
           Applicants
+        </button>
+
+        <button
+          className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all"
+          onClick={() => navigate("/client/workspaces")}
+        >
+          Workspaces
         </button>
 
         <button
