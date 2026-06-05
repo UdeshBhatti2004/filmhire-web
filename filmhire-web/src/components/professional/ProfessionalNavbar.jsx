@@ -1,94 +1,114 @@
 import React from "react";
-import {
-  Search,
-  Compass,
-  Briefcase,
-  MessageSquare,
-  User,
-} from "lucide-react";
+import { Compass, Briefcase, MessageSquare, User, Search } from "lucide-react";
 
-function ProfessionalNavbar({
-  currentTab,
-  setCurrentTab,
-}) {
+function ProfessionalNavbar({ currentTab, setCurrentTab, chatThreads = [] }) {
+  const navItems = [
+    { id: "home", label: "Home Feed", icon: Compass },
+    { id: "jobs", label: "Job Board", icon: Briefcase },
+    {
+      id: "messaging",
+      label: "Messages",
+      icon: MessageSquare,
+      badge: chatThreads.some((t) => t.unread),
+    },
+    { id: "profile", label: "My Profile", icon: User },
+  ];
+
   return (
-    <header className="w-full bg-[#111116] border-b border-white/[0.06] sticky top-0 z-50 h-14 px-4 sm:px-8 flex items-center justify-between">
-      <div className="flex items-center gap-4 flex-1 max-w-lg">
-        <div
-          className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center font-bold text-base text-white tracking-tighter cursor-pointer"
+    <aside className="fixed left-0 top-0 bottom-0 w-16 bg-[#09090b] border-r border-neutral-900 flex flex-col items-center justify-between py-5 z-50 selection:bg-white selection:text-black">
+      
+      {/* TOP: BRAND ANCHOR & SEARCH CONTAINER */}
+      <div className="flex flex-col items-center gap-5 w-full">
+        {/* Core Identity Monogram */}
+        <button
           onClick={() => setCurrentTab("home")}
+          className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold text-sm tracking-tighter active:scale-95 transition-all shadow-md shadow-white/5"
         >
           In
-        </div>
+        </button>
 
-        <div className="relative w-full max-w-xs">
-          <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-
-          <input
-            type="text"
-            placeholder="Search network infrastructure..."
-            className="w-full bg-[#181822] border border-white/[0.08] text-xs h-8 rounded pl-9 pr-4 text-neutral-200 outline-none focus:border-indigo-500/50 focus:bg-[#1c1c28] transition-all"
-          />
+        {/* Global Search Micro-Action */}
+        <div className="relative group px-2 w-full">
+          <button 
+            className="w-full aspect-square flex items-center justify-center rounded-xl text-neutral-500 hover:text-neutral-200 hover:bg-neutral-900 transition-all"
+            aria-label="Search Platform"
+          >
+            <Search className="w-4 h-4 stroke-[2]" />
+          </button>
+          
+          {/* Action Descriptive Tooltip Label */}
+          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-neutral-900 text-neutral-200 border border-neutral-800 text-[10px] font-medium tracking-wide rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 delay-100 whitespace-nowrap z-50 shadow-2xl translate-x-1 group-hover:translate-x-0">
+            Search Network
+          </div>
         </div>
       </div>
 
-      <nav className="flex items-center gap-1 sm:gap-6 ml-4">
-        {[
-          {
-            id: "home",
-            label: "Home Feed",
-            icon: Compass,
-          },
-          {
-            id: "jobs",
-            label: "Jobs",
-            icon: Briefcase,
-          },
-          {
-            id: "workspaces",
-            label: "Workspaces",
-            icon: MessageSquare,
-          },
-          {
-            id: "profile",
-            label: "Me Profile",
-            icon: User,
-          },
-        ].map((navItem) => {
-          const IconComponent = navItem.icon;
-          const isTarget = currentTab === navItem.id;
 
+      {/* CENTER: CORE NAV INTERFACE */}
+      <nav className="flex flex-col gap-1.5 w-full px-2">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentTab === item.id;
           return (
-            <button
-              key={navItem.id}
-              onClick={() => setCurrentTab(navItem.id)}
-              className={`flex flex-col items-center justify-center h-14 px-2 sm:px-3 relative group transition-colors ${
-                isTarget
-                  ? "text-white"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <div className="relative">
-                <IconComponent
-                  className={`w-[21px] h-[21px] ${
-                    isTarget ? "stroke-[2.2]" : "stroke-[1.8]"
+            <div key={item.id} className="relative group w-full">
+              <button
+                onClick={() => setCurrentTab(item.id)}
+                className={`w-full aspect-square rounded-xl flex items-center justify-center relative transition-all duration-200 active:scale-95
+                  ${isActive 
+                    ? "bg-neutral-900 text-white shadow-inner" 
+                    : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-900/50"
                   }`}
-                />
+              >
+                <div className="relative">
+  <Icon
+    className={`w-[18px] h-[18px] transition-transform duration-200 ${
+      isActive ? "stroke-[2.2] scale-105" : "stroke-[1.8]"
+    }`}
+  />
 
-              </div>
+  {item.badge && (
+    <span className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full ring-2 ring-[#09090b]" />
+  )}
+</div>
 
-              <span className="text-[10px] tracking-tight mt-0.5 font-medium hidden md:inline-block">
-                {navItem.label}
-              </span>
+{isActive && (
+  <div className="absolute left-0 top-1/3 bottom-1/3 w-[3px] bg-white rounded-r-full" />
+)}
+</button>
 
-              {isTarget && (
-                <div className="absolute bottom-0 inset-x-2 h-[2px] bg-white rounded-t-full" />
-              )}
-            </button>
+<div className="absolute left-full ...">
+  {item.label}
+</div>
+
+</div>
           );
         })}
       </nav>
-    </header>
+
+      {/* BOTTOM: ACCOUNT ANCHOR */}
+      <div className="w-full flex justify-center px-2 relative group">
+        <button 
+          onClick={() => setCurrentTab("profile")}
+          className={`w-10 h-10 rounded-xl overflow-hidden border transition-all active:scale-95 bg-neutral-900 ${
+            currentTab === "profile" 
+              ? "border-white shadow-lg shadow-white/5" 
+              : "border-neutral-800 hover:border-neutral-600"
+          }`}
+        >
+          <img 
+            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&q=80" 
+            alt="Profile Account" 
+            className="w-full h-full object-cover select-none"
+          />
+        </button>
+
+        {/* Account Hover Name Label */}
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-neutral-900 text-neutral-200 border border-neutral-800 text-[10px] font-semibold tracking-wide rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 delay-100 whitespace-nowrap z-50 shadow-2xl translate-x-1 group-hover:translate-x-0">
+          User Settings
+        </div>
+      </div>
+
+    </aside>
   );
 }
 

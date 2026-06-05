@@ -8,14 +8,17 @@ import UploadPortfolioModal from "../../components/professional/UploadPortfolioM
 import JobsView from "../../components/professional/JobsView";
 import ProfessionalNavbar from "../../components/professional/ProfessionalNavbar";
 import ProfessionalWorkspaceView from "../../components/professional/ProfessionalWorkspaceView";
-
+import HomeSkeleton from "../../components/loaders/HomeSkeletonProfessional";
 
 const ProfessionalDashboard = () => {
   const navigate = useNavigate();
  
   const [feedJobs, setFeedJobs] = useState([]);
   const [applicationStatuses, setApplicationStatuses] = useState({});
-  const [appliedJobs, setAppliedJobs] = useState([]); 
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [comments, setComments] = useState({});
+  const [commentInputs, setCommentInputs] = useState({});
 
     const [currentTab, setCurrentTab] = useState("home");
   const [jobsSubTab, setJobsSubTab] = useState("explore"); 
@@ -58,6 +61,84 @@ const ProfessionalDashboard = () => {
 
     setFeedJobs(data || []);
   };
+  const fetchComments = async (postId) => {
+    const { data, error } = await supabase
+      .from("professional_post_comments")
+      .select(
+        `
+      *,
+      profile:profiles(
+        id,
+        full_name,
+        avatar_url
+      )
+    `,
+      )
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setComments((prev) => ({
+      ...prev,
+      [postId]: data || [],
+    }));
+  };
+  const handleAddComment = async (postId) => {
+    try {
+      const text = commentInputs[postId]?.trim();
+
+      if (!text) return;
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("professional_post_comments")
+        .insert({
+          post_id: postId,
+          user_id: user.id,
+          comment: text,
+        });
+
+      if (error) throw error;
+
+      const post = homePosts.find((p) => p.id === postId);
+
+      await supabase
+        .from("professional_posts")
+        .update({
+          comments_count: (post.comments_count || 0) + 1,
+        })
+        .eq("id", postId);
+
+      setCommentInputs((prev) => ({
+        ...prev,
+        [postId]: "",
+      }));
+
+      setHomePosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                comments_count: (p.comments_count || 0) + 1,
+              }
+            : p,
+        ),
+      );
+
+      fetchComments(postId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchAppliedJobs = async () => {
     try {
@@ -99,15 +180,37 @@ useEffect(() => {
   }
 }, [feedJobs]);
 
+  const [newPostText, setNewPostText] = useState("");
+  const [postMedia, setPostMedia] = useState(null);
+    const [newPostTools, setNewPostTools] = useState("");
+
+  const [expandedComments, setExpandedComments] = useState({});
+  const [homePosts, setHomePosts] = useState([]);
+
+  const [portfolioTitle, setPortfolioTitle] = useState("");
+  const [portfolioCategory, setPortfolioCategory] = useState("");
+
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+
+
+  const handlePostMediaChange = (e) => {
+    if (e.target.files && e.target.files) {
+      setPostMedia(e.target.files);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
   }, []);
-
   const fetchProfile = async () => {
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      setCurrentUserId(user.id);
 
       const { data, error } = await supabase
         .from("profiles")
@@ -131,59 +234,213 @@ setSelectedFile(file);
       if (file.type.startsWith("video/")) setNewMediaType("video");
       else if (file.type.startsWith("image/")) setNewMediaType("image");
     }
+  }
+
+
+  const handleLikePost = async (postId) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const post = homePosts.find((p) => p.id === postId);
+
+      if (!post) return;
+
+      // Unlike
+      if (post.hasLiked) {
+        const { error: deleteError } = await supabase
+          .from("professional_post_likes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id);
+
+        if (deleteError) throw deleteError;
+
+        const { error: updateError } = await supabase
+          .from("professional_posts")
+          .update({
+            likes_count: Math.max((post.likes_count || 0) - 1, 0),
+          })
+          .eq("id", postId);
+
+        if (updateError) throw updateError;
+
+        setHomePosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  hasLiked: false,
+                  likes_count: Math.max((p.likes_count || 0) - 1, 0),
+                }
+              : p,
+          ),
+        );
+      }
+
+      // Like
+      else {
+        const { error: insertError } = await supabase
+          .from("professional_post_likes")
+          .insert({
+            post_id: postId,
+            user_id: user.id,
+          });
+
+        if (insertError) throw insertError;
+
+
+        const { error: updateError } = await supabase
+          .from("professional_posts")
+          .update({
+            likes_count: (post.likes_count || 0) + 1,
+          })
+          .eq("id", postId);
+
+        if (updateError) throw updateError;
+
+        setHomePosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? {
+                  ...p,
+                  hasLiked: true,
+                  likes_count: (p.likes_count || 0) + 1,
+                }
+              : p,
+          ),
+        );
+      }
+    } catch (err) {
+      console.error("Like error:", err);
+    }
+  };
+
+  const handleCreateHomePost = async () => {
+    if (!newPostText.trim()) return;
+
+    try {
+      let mediaUrl = null;
+
+      if (postMedia) {
+        const fileExt = postMedia.name.split(".").pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `posts/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("post-media")
+          .upload(filePath, postMedia);
+
+        if (uploadError) throw uploadError;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("post-media").getPublicUrl(filePath);
+
+        mediaUrl = publicUrl;
+      }
+
+      const toolsArray = newPostTools
+        .split(",")
+        .map((tool) => tool.trim())
+        .filter(Boolean);
+
+      const { error } = await supabase.from("professional_posts").insert({
+        professional_id: profile.id,
+        content: newPostText,
+        media_url: mediaUrl,
+        tools: toolsArray,
+      });
+
+      if (error) throw error;
+
+      setNewPostText("");
+      setNewPostTools("");
+      setPostMedia(null);
+
+      fetchPosts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleThumbnailChange = (e) => {
+    setThumbnailFile(e.target.files?.[0] || null);
+  };
+
+  const handleVideoChange = (e) => {
+    setVideoFile(e.target.files?.[0] || null);
   };
 
   const handleCreateMediaItem = async () => {
-    if (!newMediaTitle.trim() || !selectedFile) return;
-
     try {
+      if (
+        !portfolioTitle.trim() ||
+        !portfolioCategory.trim() ||
+        !thumbnailFile ||
+        !videoFile
+      ) {
+        return;
+      }
+
       setIsUploading(true);
-      const fileExt = selectedFile.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `portfolio/${fileName}`;
+      const thumbnailExt = thumbnailFile.name.split(".").pop();
 
-      const { error: uploadError } = await supabase.storage
-        .from("portfolio-assets")
-        .upload(filePath, selectedFile);
+      const thumbnailPath = `${profile.id}/${Date.now()}-thumbnail.${thumbnailExt}`;
 
-      if (uploadError) throw uploadError;
+      const { error: thumbnailError } = await supabase.storage
+        .from("portfolio-thumbnails")
+        .upload(thumbnailPath, thumbnailFile);
+
+      if (thumbnailError) throw thumbnailError;
 
       const {
-        data: { publicUrl },
-      } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
+        data: { publicUrl: thumbnailUrl },
+      } = supabase.storage
+        .from("portfolio-thumbnails")
+        .getPublicUrl(thumbnailPath);
 
-      const derivedUrl =
-        newMediaType === "video"
-          ? "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80"
-          : publicUrl;
+      const videoExt = videoFile.name.split(".").pop();
 
-      const parsedTech = newMediaTech
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
+      const videoPath = `${profile.id}/${Date.now()}-video.${videoExt}`;
 
-      setProfile((prev) => ({
-        ...prev,
-        mediaGrid: [
-          {
-            id: Date.now(),
-            type: newMediaType,
-            thumbnail: derivedUrl,
-            title: newMediaTitle,
-            views: "10",
-            techStack: parsedTech.length > 0 ? parsedTech : ["Asset Creation"],
-          },
-          ...prev.mediaGrid,
-        ],
-      }));
+      const { error: videoError } = await supabase.storage
+        .from("portfolio-videos")
+        .upload(videoPath, videoFile);
 
-      // FIXED: Cleared out syntax crashes here
-      setNewMediaTitle("");
-      setNewMediaTech("");
-      setSelectedFile(null);
+      if (videoError) throw videoError;
+
+      const {
+        data: { publicUrl: videoUrl },
+      } = supabase.storage.from("portfolio-videos").getPublicUrl(videoPath);
+
+      const { error: insertError } = await supabase
+        .from("portfolio_items")
+        .insert({
+          professional_id: profile.id,
+          title: portfolioTitle,
+          thumbnail_url: thumbnailUrl,
+          video_url: videoUrl,
+          category: portfolioCategory,
+        });
+
+      if (insertError) throw insertError;
+      window.dispatchEvent(new Event("portfolio-updated"));
+
+      
+
+      setPortfolioTitle("");
+      setPortfolioCategory("");
+
+      setThumbnailFile(null);
+      setVideoFile(null);
+
       setShowUploadModal(false);
-    } catch (error) {
-      console.error("Upload error caught: ", error.message);
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsUploading(false);
     }
@@ -204,13 +461,13 @@ setSelectedFile(file);
 };
 
   const getFilteredJobs = () => {
-  let list = feedJobs;
+    let list = feedJobs;
 
-  if (jobsSubTab === "saved") {
-    list = feedJobs.filter((j) => savedJobIds.includes(j.id));
-  } else if (jobsSubTab === "applied") {
-    list = appliedJobs;
-  }
+    if (jobsSubTab === "saved") {
+      list = feedJobs.filter((j) => savedJobIds.includes(j.id));
+    } else if (jobsSubTab === "applied") {
+      list = appliedJobs;
+    }
 
 
     return list.filter(
@@ -218,21 +475,22 @@ setSelectedFile(file);
         j.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (j.client?.company_name || "")
           .toLowerCase()
-          .includes(searchQuery.toLowerCase())
+          .includes(searchQuery.toLowerCase()),
     );
   };
 
   const fetchAppliedJobsData = async () => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) return;
+      if (!user) return;
 
-    const { data, error } = await supabase
-      .from("job_applications")
-      .select(`
+      const { data, error } = await supabase
+        .from("job_applications")
+        .select(
+          `
         status,
         jobs (
           *,
@@ -243,16 +501,17 @@ setSelectedFile(file);
             company_name
           )
         )
-      `)
-      .eq("professional_id", user.id);
+      `,
+        )
+        .eq("professional_id", user.id);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const jobs =
-      data?.map((item) => ({
-        ...item.jobs,
-        applicationStatus: item.status,
-      })) || [];
+      const jobs =
+        data?.map((item) => ({
+          ...item.jobs,
+          applicationStatus: item.status,
+        })) || [];
 
     setAppliedJobs(jobs);
   } catch (err) {
@@ -267,11 +526,127 @@ setSelectedFile(file);
   fetchAppliedJobsData();
 }, []);
 
+  const fetchPosts = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const userId = user?.id;
+
+    const { data, error } = await supabase
+      .from("professional_posts")
+      .select(
+        `
+      *,
+      professional:profiles(
+        id,
+        full_name,
+        avatar_url,
+        specializations
+      ),
+      professional_post_likes(
+        user_id
+      )
+    `,
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const postsWithLikes = (data || []).map((post) => ({
+      ...post,
+      hasLiked: post.professional_post_likes?.some(
+        (like) => like.user_id === userId,
+      ),
+    }));
+
+    setHomePosts(postsWithLikes);
+  };
+
+  const currentFilteredJobs = getFilteredJobs();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("professional-posts")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "professional_posts",
+        },
+        (payload) => {
+          console.log("REALTIME PAYLOAD:", payload);
+
+          const updatedPost = payload.new;
+
+          if (!updatedPost) return;
+
+          setHomePosts((prev) =>
+            prev.map((post) =>
+              post.id === updatedPost.id
+                ? {
+                    ...post,
+                    likes_count: updatedPost.likes_count,
+                    comments_count: updatedPost.comments_count,
+                  }
+                : post,
+            ),
+          );
+        },
+      )
+      .subscribe((status) => {
+        console.log("REALTIME STATUS:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("professional-comments")
+
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "professional_post_comments",
+        },
+        async (payload) => {
+          console.log("NEW COMMENT", payload);
+
+          const comment = payload.new;
+
+          // Only update if comments for this post are currently open
+          if (!expandedComments[comment.post_id]) return;
+
+          await fetchComments(comment.post_id);
+        },
+      )
+
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [expandedComments]);
+
+  useEffect(() => {
+    fetchFeedJobs();
+    fetchPosts();
+    fetchAppliedJobs();
+    fetchAppliedJobsData();
+  }, []);
+
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        Loading...
-      </div>
+      <HomeSkeleton />
     );
   }
 
@@ -289,13 +664,14 @@ setSelectedFile(file);
         
       />
 
-      <div className="w-full max-w-[1200px] mx-auto px-4 lg:px-6 pt-5 flex-1">
+      <div className="w-full max-w-full mx-auto px-4 lg:px-6 pt-5 flex-1">
         {currentTab === "home" && (
           <HomeView
   profile={profile}
   feedJobs={feedJobs}
   setCurrentTab={setCurrentTab}
 />
+
         )}
 
         {currentTab === "jobs" && (
@@ -320,7 +696,6 @@ setSelectedFile(file);
         {currentTab === "workspaces" && (
   <ProfessionalWorkspaceView />
 )}
-
         {currentTab === "profile" && (
           <ProfileView
             profile={profile}
@@ -334,12 +709,14 @@ setSelectedFile(file);
       <UploadPortfolioModal
         showUploadModal={showUploadModal}
         setShowUploadModal={setShowUploadModal}
-        newMediaTitle={newMediaTitle}
-        setNewMediaTitle={setNewMediaTitle}
-        newMediaTech={newMediaTech}
-        setNewMediaTech={setNewMediaTech}
-        selectedFile={selectedFile}
-        handleFileChange={handleFileChange}
+        title={portfolioTitle}
+        setTitle={setPortfolioTitle}
+        category={portfolioCategory}
+        setCategory={setPortfolioCategory}
+        thumbnailFile={thumbnailFile}
+        videoFile={videoFile}
+        handleThumbnailChange={handleThumbnailChange}
+        handleVideoChange={handleVideoChange}
         handleCreateMediaItem={handleCreateMediaItem}
         isUploading={isUploading}
       />
