@@ -1,3 +1,4 @@
+// ProfessionalDashboard.jsx
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +10,7 @@ import JobsView from "../../components/professional/JobsView";
 import ProfessionalNavbar from "../../components/professional/ProfessionalNavbar";
 import HomeSkeleton from "../../components/loaders/HomeSkeletonProfessional";
 import ProfessionalWorkspaceView from "../../components/professional/ProfessionalWorkspaceView";
+import ConnectionsPage from "../../components/professional/Connections";
 
 const ProfessionalDashboard = () => {
   const navigate = useNavigate();
@@ -187,7 +189,7 @@ const ProfessionalDashboard = () => {
   const [postMedia, setPostMedia] = useState(null);
 
   const handlePostMediaChange = (e) => {
-    if (e.target.files && e.target.files?.[0]) {
+    if (e.target.files[0] && e.target.files[0]) {
       setPostMedia(e.target.files[0]);
     }
   };
@@ -299,68 +301,86 @@ const ProfessionalDashboard = () => {
     }
   };
 
-  const handleCreateHomePost = async () => {
-    setIsPosting(true);
-    if (!newPostText.trim()) return;
+const handleCreateHomePost = async () => {
+  if (!newPostText.trim()) return;
 
-    try {
-      let mediaUrl = null;
+  setIsPosting(true);
 
-      if (postMedia) {
-        const fileExt = postMedia.name.split(".").pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `posts/${fileName}`;
+  try {
+    let mediaUrl = null;
 
-        const { error: uploadError } = await supabase.storage
-          .from("post-media")
-          .upload(filePath, postMedia);
-
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("post-media").getPublicUrl(filePath);
-
-        mediaUrl = publicUrl;
+    if (postMedia) {
+      // Ensure we have a valid File object
+      if (!(postMedia instanceof File)) {
+        throw new Error("Invalid media file selected");
       }
 
-      const toolsArray = (newPostTools || "")
-        .split(",")
-        .map((tool) => tool.trim())
-        .filter(Boolean);
+      const fileExt = postMedia.name?.split(".")?.pop();
 
-      const { error } = await supabase.from("professional_posts").insert({
+      if (!fileExt) {
+        throw new Error("Unable to determine file extension");
+      }
+
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `posts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("post-media")
+        .upload(filePath, postMedia);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage
+        .from("post-media")
+        .getPublicUrl(filePath);
+
+      mediaUrl = publicUrl;
+    }
+
+    const toolsArray = (newPostTools ?? "")
+      .split(",")
+      .map((tool) => tool.trim())
+      .filter(Boolean);
+
+    if (!profile?.id) {
+      throw new Error("Profile not loaded");
+    }
+
+    const { error } = await supabase
+      .from("professional_posts")
+      .insert({
         professional_id: profile.id,
-        content: newPostText,
+        content: newPostText.trim(),
         media_url: mediaUrl,
         tools: toolsArray,
       });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setNewPostText("");
-      setNewPostTools("");
-      setPostMedia(null);
+    setNewPostText("");
+    setNewPostTools("");
+    setPostMedia(null);
 
-      fetchPosts();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
+    await fetchPosts();
+  } catch (err) {
+    console.error("Create post error:", err);
+  } finally {
+    setIsPosting(false);
+  }
+};
   const handleThumbnailChange = (e) => {
-    setThumbnailFile(e.target.files?.[0] || null);
+    setThumbnailFile(e.target.files[0] || null);
   };
 
   const handleVideoChange = (e) => {
-    setVideoFile(e.target.files?.[0] || null);
+    setVideoFile(e.target.files[0] || null);
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files?.[0]) {
-      const file = e.target.files?.[0];
+    if (e.target.files[0]) {
+      const file = e.target.files[0];
       setSelectedFile(file);
       if (file.type.startsWith("video/")) setNewMediaType("video");
       else if (file.type.startsWith("image/")) setNewMediaType("image");
@@ -609,7 +629,6 @@ const ProfessionalDashboard = () => {
 
           const comment = payload.new;
 
-          // Only update if comments for this post are currently open
           if (!expandedComments[comment.post_id]) return;
 
           await fetchComments(comment.post_id);
@@ -671,6 +690,11 @@ const ProfessionalDashboard = () => {
             handleAddComment={handleAddComment}
             isPosting={isPosting}
           />
+        )}
+
+        {/* INTEGRATED CONNECTIONS DIRECTORY TAB VIEW */}
+        {currentTab === "connections" && (
+          <ConnectionsPage />
         )}
 
         {currentTab === "jobs" && (

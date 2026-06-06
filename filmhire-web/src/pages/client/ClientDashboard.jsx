@@ -28,6 +28,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase"; 
 import ClientNavbar from "../../components/client/ClientNavbar";
+import ConnectionRequests from "../../components/common/ConnectionRequests";
+
 
 // ==========================================
 // PLACEHOLDER INTERNAL SUB-COMPONENTS
@@ -85,6 +87,7 @@ const ClientDashboard = () => {
   const navigate = useNavigate();
 
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [clientProfile, setClientProfile] = useState(null);
 
   // Basic Navigation View States
   const [activeView, setActiveView] = useState("talent-feed");
@@ -324,11 +327,15 @@ const ClientDashboard = () => {
       }
       setCurrentUserId(user.id);
 
+      // FIXED: Added full_name, avatar_url, city, and state to query string selections
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, full_name, avatar_url, city, state")
         .eq("id", user.id)
         .single();
+
+      setClientProfile(profile);
+      console.log(profile);
 
       if (profile?.role !== "client") {
         navigate("/professional/dashboard");
@@ -398,6 +405,10 @@ const ClientDashboard = () => {
         );
       case "create-job":
         return <CreateJob />;
+
+      case "connections":
+        return <ConnectionRequests onDataChange={() => fetchFeedPosts()} />;
+
       case "talent-feed":
       default:
         return (
@@ -412,154 +423,154 @@ const ClientDashboard = () => {
               <SlidersHorizontal className="w-4 h-4 text-neutral-400 hover:text-white cursor-pointer transition-colors" />
             </div>
 
-           {feedPosts.map((post) => (
-  <article
-    key={post.id}
-    className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden transition-all duration-200 hover:border-zinc-700/80 m-4 max-w-2xl mx-auto"
-  >
-    {/* Header Section */}
-    <div className="p-4 flex items-center justify-between">
-      <div 
-        onClick={() => navigate(`/profile/${post.professional?.id}`)}
-        className="flex items-center gap-3 cursor-pointer group"
-      >
-        <img
-          src={post.professional?.avatar_url || "https://ui-avatars.com/api/?name=User"}
-          alt=""
-          className="w-9 h-9 rounded-full object-cover bg-zinc-800 border border-zinc-700/50"
-        />
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-zinc-200 group-hover:text-indigo-400 transition-colors">
-              {post.professional?.full_name || "Professional"}
-            </h3>
-            <span className="w-1 h-1 rounded-full bg-zinc-600" />
-            <span className="text-xs text-zinc-500">
-              {new Date(post.created_at).toLocaleDateString()}
-            </span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            {post.professional?.specializations || "Creative"}
-          </p>
-        </div>
-      </div>
-    </div>
+            {feedPosts.map((post) => (
+              <article
+                key={post.id}
+                className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden transition-all duration-200 hover:border-zinc-700/80 m-4 max-w-2xl mx-auto"
+              >
+                {/* Header Section */}
+                <div className="p-4 flex items-center justify-between">
+                  <div 
+                    onClick={() => navigate(`/profile/${post.professional?.id}`)}
+                    className="flex items-center gap-3 cursor-pointer group"
+                  >
+                    <img
+                      src={post.professional?.avatar_url || "https://ui-avatars.com/api/?name=User"}
+                      alt=""
+                      className="w-9 h-9 rounded-full object-cover bg-zinc-800 border border-zinc-700/50"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-zinc-200 group-hover:text-indigo-400 transition-colors">
+                          {post.professional?.full_name || "Professional"}
+                        </h3>
+                        <span className="w-1 h-1 rounded-full bg-zinc-600" />
+                        <span className="text-xs text-zinc-500">
+                          {new Date(post.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        {post.professional?.specializations || "Creative"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-    {/* Media Body */}
-    <div className="relative aspect-[16/9] w-full bg-zinc-950 border-y border-zinc-800">
-      {post.media_url?.match(/\.(mp4|webm|mov)$/i) ? (
-        <video
-          src={post.media_url}
-          controls
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <img
-          src={post.media_url}
-          alt=""
-          className="w-full h-full object-cover"
-        />
-      )}
-    </div>
+                {/* Media Body */}
+                <div className="relative aspect-[16/9] w-full bg-zinc-950 border-y border-zinc-800">
+                  {post.media_url?.match(/\.(mp4|webm|mov)$/i) ? (
+                    <video
+                      src={post.media_url}
+                      controls
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={post.media_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
 
-    {/* Content & Action Tray */}
-    <div className="p-4 space-y-3.5">
-      {/* Interaction Buttons */}
-      <div className="flex items-center justify-between text-zinc-400">
-        <div className="flex items-center gap-5">
-          <button
-            onClick={() => handleLikePost(post.id)}
-            className={`flex items-center gap-1.5 text-sm transition-colors ${
-              post.hasLiked ? "text-rose-500 font-medium" : "hover:text-zinc-200"
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${post.hasLiked ? "fill-rose-500" : ""}`} />
-            <span>{post.likes_count || 0}</span>
-          </button>
+                {/* Content & Action Tray */}
+                <div className="p-4 space-y-3.5">
+                  {/* Interaction Buttons */}
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <div className="flex items-center gap-5">
+                      <button
+                        onClick={() => handleLikePost(post.id)}
+                        className={`flex items-center gap-1.5 text-sm transition-colors ${
+                          post.hasLiked ? "text-rose-500 font-medium" : "hover:text-zinc-200"
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${post.hasLiked ? "fill-rose-500" : ""}`} />
+                        <span>{post.likes_count || 0}</span>
+                      </button>
 
-          <button
-            onClick={() => toggleCommentSection(post.id)}
-            className={`flex items-center gap-1.5 text-sm transition-colors ${
-              visibleComments[post.id] ? "text-indigo-400 font-medium" : "hover:text-zinc-200"
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>{post.comments_count || 0}</span>
-          </button>
-        </div>
+                      <button
+                        onClick={() => toggleCommentSection(post.id)}
+                        className={`flex items-center gap-1.5 text-sm transition-colors ${
+                          visibleComments[post.id] ? "text-indigo-400 font-medium" : "hover:text-zinc-200"
+                        }`}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>{post.comments_count || 0}</span>
+                      </button>
+                    </div>
 
-        <button
-          onClick={() => toggleSave(post.id)}
-          className={`transition-colors ${
-            savedPosts[post.id] ? "text-indigo-400" : "hover:text-zinc-200"
-          }`}
-        >
-          <Bookmark className={`w-4 h-4 ${savedPosts[post.id] ? "fill-indigo-400" : ""}`} />
-        </button>
-      </div>
+                    <button
+                      onClick={() => toggleSave(post.id)}
+                      className={`transition-colors ${
+                        savedPosts[post.id] ? "text-indigo-400" : "hover:text-zinc-200"
+                      }`}
+                    >
+                      <Bookmark className={`w-4 h-4 ${savedPosts[post.id] ? "fill-indigo-400" : ""}`} />
+                    </button>
+                  </div>
 
-      {/* Post Text Description */}
-      <div className="space-y-2">
-        <p className="text-sm text-zinc-300 leading-relaxed">
-          <span className="font-medium text-zinc-200 mr-2">
-            {post.professional?.full_name || "Professional"}
-          </span>
-          {post.content}
-        </p>
+                  {/* Post Text Description */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-zinc-300 leading-relaxed">
+                      <span className="font-medium text-zinc-200 mr-2">
+                        {post.professional?.full_name || "Professional"}
+                      </span>
+                      {post.content}
+                    </p>
 
-        {post.tools && post.tools.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {post.tools.map((tool, idx) => (
-              <span key={idx} className="text-xs text-indigo-400 hover:underline cursor-pointer">
-                #{tool}
-              </span>
+                    {post.tools && post.tools.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {post.tools.map((tool, idx) => (
+                          <span key={idx} className="text-xs text-indigo-400 hover:underline cursor-pointer">
+                            #{tool}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Clean, Non-intrusive Comments Section */}
+                  {visibleComments[post.id] && (
+                    <div className="pt-4 border-t border-zinc-800 space-y-4">
+                      <div className="max-h-60 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                        {post.professional_post_comments?.map((cmt) => (
+                          <div key={cmt.id} className="text-sm flex gap-2 items-start">
+                            <span className="font-medium text-zinc-200 whitespace-nowrap">
+                              {cmt.user?.full_name || "Anonymous"}:
+                            </span>
+                            <span className="text-zinc-400 break-words flex-1">{cmt.comment}</span>
+                          </div>
+                        ))}
+
+                        {(!post.professional_post_comments || post.professional_post_comments.length === 0) && (
+                          <p className="text-xs text-zinc-500 py-2">No comments yet. Be the first to reply.</p>
+                        )}
+                      </div>
+
+                      {/* Inline Input Box */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-zinc-800">
+                        <input
+                          type="text"
+                          placeholder="Add a comment..."
+                          value={commentInputs[post.id] || ""}
+                          onChange={(e) =>
+                            setCommentInputs((p) => ({ ...p, [post.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => e.key === "Enter" && handlePostComment(post.id)}
+                          className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-700 transition-colors"
+                        />
+                        <button
+                          onClick={() => handlePostComment(post.id)}
+                          className="text-xs text-indigo-400 font-medium hover:text-indigo-300 px-2 py-1 transition-colors"
+                        >
+                          Post
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </article>
             ))}
-          </div>
-        )}
-      </div>
-
-      {/* Clean, Non-intrusive Comments Section */}
-      {visibleComments[post.id] && (
-        <div className="pt-4 border-t border-zinc-800 space-y-4">
-          <div className="max-h-60 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-            {post.professional_post_comments?.map((cmt) => (
-              <div key={cmt.id} className="text-sm flex gap-2 items-start">
-                <span className="font-medium text-zinc-200 whitespace-nowrap">
-                  {cmt.user?.full_name || "Anonymous"}:
-                </span>
-                <span className="text-zinc-400 break-words flex-1">{cmt.comment}</span>
-              </div>
-            ))}
-
-            {(!post.professional_post_comments || post.professional_post_comments.length === 0) && (
-              <p className="text-xs text-zinc-500 py-2">No comments yet. Be the first to reply.</p>
-            )}
-          </div>
-
-          {/* Inline Input Box */}
-          <div className="flex items-center gap-2 pt-2 border-t border-zinc-800">
-            <input
-              type="text"
-              placeholder="Add a comment..."
-              value={commentInputs[post.id] || ""}
-              onChange={(e) =>
-                setCommentInputs((p) => ({ ...p, [post.id]: e.target.value }))
-              }
-              onKeyDown={(e) => e.key === "Enter" && handlePostComment(post.id)}
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-700 transition-colors"
-            />
-            <button
-              onClick={() => handlePostComment(post.id)}
-              className="text-xs text-indigo-400 font-medium hover:text-indigo-300 px-2 py-1 transition-colors"
-            >
-              Post
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  </article>
-))}
           </>
         );
     }
@@ -573,7 +584,8 @@ const ClientDashboard = () => {
         .font-mono { font-family: 'JetBrains Mono', sans-serif; }
       `}</style>
 
-      <ClientNavbar />
+      {/* Passing states to your ClientNavbar so clicking connections targets activeView updates */}
+      <ClientNavbar activeView={activeView} onViewChange={setActiveView} />
 
       <div className="flex-1 max-w-[1440px] w-full mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-8 mt-8 items-start pb-24">
         {/* LEFT COLUMN */}
@@ -581,10 +593,28 @@ const ClientDashboard = () => {
           <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.01] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/15 transition-all duration-500" />
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-white/[0.08] flex items-center justify-center font-bold text-sm text-indigo-400 shadow-inner">HS</div>
+              {clientProfile?.avatar_url ? (
+                <img
+                  src={clientProfile.avatar_url}
+                  alt=""
+                  className="w-12 h-12 rounded-xl object-cover border border-white/[0.08]"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-white/[0.08] flex items-center justify-center font-bold text-sm text-indigo-400">
+                  {clientProfile?.full_name?.slice(0, 2).toUpperCase() || "CL"}
+                </div>
+              )}
               <div>
-                <h2 className="text-xs font-semibold text-neutral-200 tracking-tight font-display">Hibernate Studios</h2>
-                <p className="text-[10px] text-neutral-500 font-mono mt-0.5 tracking-wider">ID: client_0982</p>
+                <h2 className="text-xs font-semibold text-neutral-200 tracking-tight font-display">
+                  {clientProfile?.full_name || "Client"}
+                </h2>
+                {/* SAFE STRUCTURING: Checks both fields and cleans trailing spaces or missing strings */}
+                <p className="text-[10px] text-neutral-500 font-mono mt-0.5 tracking-wider">
+                  {clientProfile?.city || clientProfile?.state 
+                    ? `${clientProfile?.city || ""}${clientProfile?.city && clientProfile?.state ? ", " : ""}${clientProfile?.state || ""}`
+                    : "Location Unspecified"
+                  }
+                </p>
               </div>
             </div>
             <div className="pt-4 border-t border-white/[0.06] flex justify-between items-center text-xs text-neutral-400">

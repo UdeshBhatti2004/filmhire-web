@@ -19,6 +19,7 @@ import { NotFoundPage } from "./pages/NotFound";
 import ApplicationsPage from "./pages/client/ApplicationsPage";
 import ClientWorkspacePage from "./pages/client/ClientWorkspacePage";
 import ProfileViewPage from "./pages/ProfileViewPage";
+import ConnectionRequests from "./components/common/ConnectionRequests";
 
 
 function App() {
@@ -151,6 +152,11 @@ function App() {
             <ProfessionalJobDetails />
         }
       />
+
+      <Route
+  path="/client/connections"
+  element={<ConnectionRequests />}
+/>
 
       <Route path="/profile/:id" element={<ProfileViewPage />} />
 

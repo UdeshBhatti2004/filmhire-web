@@ -5,12 +5,11 @@ import {
   MoreHorizontal,
   ThumbsUp,
   MapPin,
-  MessageSquare,
   Star,
-  Briefcase,
   Layers,
   Send,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
@@ -36,13 +35,9 @@ const HomeView = ({
   fetchComments,
   handleAddComment,
   setCurrentTab,
-    isPosting,
+  isPosting,
 }) => {
   const navigate = useNavigate();
-
-
-    
-
 
   return (
     <div className="w-full bg-[#09090b] text-neutral-200 min-h-screen selection:bg-white selection:text-black antialiased flex justify-center">
@@ -106,13 +101,12 @@ const HomeView = ({
             </div>
           </div>
 
-          {/* ADD COMPACT EXTRA NAVIGATION INTERFACES HERE IF NEEDED TO FILL SPACE */}
           <div className="pt-2 text-[11px] text-neutral-600">
             <p>© 2026 Professional Guild network infrastructure. All rights reserved.</p>
           </div>
         </aside>
 
-        {/* ================= CENTER STREAM STREAM FEED ================= */}
+        {/* ================= CENTER STREAM FEED ================= */}
         <main className="col-span-1 lg:col-span-6 px-4 py-6 md:p-8 space-y-6 lg:h-screen lg:overflow-y-auto scrollbar-none">
           
           {/* COMPOSER / POST EDITOR INTERFACE */}
@@ -165,16 +159,16 @@ const HomeView = ({
               </label>
 
               <button
-  onClick={handleCreateHomePost}
-  disabled={!newPostText.trim() || isPosting}
-  className="h-9 bg-white text-black font-semibold text-xs px-5 rounded-xl hover:bg-neutral-200 transition-all disabled:opacity-20 disabled:hover:bg-white active:scale-[0.98]"
->
-  {isPosting ? "Publishing..." : "Publish Post"}
-</button>
+                onClick={handleCreateHomePost}
+                disabled={!newPostText.trim() || isPosting}
+                className="h-9 bg-white text-black font-semibold text-xs px-5 rounded-xl hover:bg-neutral-200 transition-all disabled:opacity-20 disabled:hover:bg-white active:scale-[0.98]"
+              >
+                {isPosting ? "Publishing..." : "Publish Post"}
+              </button>
             </div>
           </div>
 
-          {/* TIMELINE TIMELINE STACK CONTAINER */}
+          {/* TIMELINE STACK CONTAINER */}
           <div className="space-y-5">
             {homePosts.map((post) => (
               <article
@@ -187,11 +181,15 @@ const HomeView = ({
                     <img
                       src={post.professional?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop"}
                       alt="Avatar"
-                      className="w-10 h-10 rounded-xl object-cover bg-neutral-900 border border-neutral-900 select-none"
+                      onClick={() => navigate(`/profile/${post.professional.id}`)}
+                      className="w-10 h-10 rounded-xl object-cover bg-neutral-900 border border-neutral-900 select-none cursor-pointer hover:opacity-80 transition-opacity"
                     />
 
                     <div className="space-y-0.5">
-                      <h4 className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5">
+                      <h4 
+                        onClick={() => navigate(`/profile/${post.professional.id}`)}
+                        className="text-xs font-bold text-white tracking-tight flex items-center gap-1.5 cursor-pointer hover:underline underline-offset-2"
+                      >
                         {post.professional?.full_name}
                       </h4>
                       <p className="text-[10px] font-medium text-neutral-400 tracking-wide">
@@ -313,12 +311,16 @@ const HomeView = ({
                             <img
                               src={comment.profile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&fit=crop"}
                               alt=""
-                              className="w-7 h-7 rounded-lg object-cover bg-neutral-900 shrink-0 select-none"
+                              onClick={() => navigate(`/profile/${comment.profile.id}`)}
+                              className="w-7 h-7 rounded-lg object-cover bg-neutral-900 shrink-0 select-none cursor-pointer hover:opacity-80 transition-opacity"
                             />
 
                             <div className="space-y-1 flex-1 min-w-0">
                               <div className="flex justify-between items-baseline gap-4">
-                                <p className="text-xs font-bold text-white truncate tracking-tight">
+                                <p 
+                                  onClick={() => navigate(`/profile/${comment.profile.id}`)}
+                                  className="text-xs font-bold text-white truncate tracking-tight cursor-pointer hover:underline"
+                                >
                                   {comment.profile?.full_name}
                                 </p>
                                 <p className="text-[9px] text-neutral-500 font-mono shrink-0">
@@ -339,14 +341,16 @@ const HomeView = ({
               </article>
             ))}
           </div>
-          </main>
-            <button
-    onClick={() => setCurrentTab("jobs")}
-    className="w-full mt-4 text-xs bg-white/5 hover:bg-white/10 rounded-lg py-2"
-  >
-    View All Jobs
-  </button>
-        </div>
+          
+          {/* VIEW ALL JOBS BUTTON */}
+          <button
+            onClick={() => setCurrentTab("jobs")}
+            className="w-full mt-4 text-xs bg-white/5 hover:bg-white/10 rounded-lg py-2"
+          >
+            View All Jobs
+          </button>
+        </main>
+      </div>
     </div>
   );
 };

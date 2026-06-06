@@ -1,3 +1,4 @@
+// ProfileView.jsx
 import React, { useEffect, useState } from "react";
 import {
   CheckCircle,
@@ -8,7 +9,8 @@ import {
   Star,
   ArrowUpRight,
   Trash2,
-  Pencil
+  Pencil,
+  Users
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
@@ -18,15 +20,49 @@ function ProfileView({ profile = {}, setShowUploadModal, setCurrentTab }) {
   const [editingPortfolio, setEditingPortfolio] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [connectionsCount, setConnectionsCount] = useState(0);
+
+  const fetchPortfolioItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("portfolio_items")
+        .select("*")
+        .eq("professional_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPortfolioItems(data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+const fetchConnectionsCount = async () => {
+  try {
+    // We filter for your ID in either user_a OR user_b
+    // The count property will return the total number of rows matching that logic
+    const { count, error } = await supabase
+      .from("connections")
+      .select("id", { count: "exact", head: true })
+      .or(`user_a.eq.${profile.id},user_b.eq.${profile.id}`);
+
+    if (error) throw error;
+    
+    // Fallback to 0 if count returns null
+    setConnectionsCount(count || 0);
+  } catch (err) {
+    console.error("Error fetching connections count:", err);
+  }
+};
 
   const handleDeletePortfolio = async (item) => {
     try {
       const thumbnailPath = decodeURIComponent(
-        item.thumbnail_url.split("/portfolio-thumbnails/")[1],
+        item.thumbnail_url.split("/portfolio-thumbnails/")
       );
 
       const videoPath = decodeURIComponent(
-        item.video_url.split("/portfolio-videos/")[1],
+        item.video_url.split("/portfolio-videos/")
       );
 
       await supabase.storage
@@ -43,81 +79,56 @@ function ProfileView({ profile = {}, setShowUploadModal, setCurrentTab }) {
       if (error) throw error;
 
       setPortfolioItems((prev) =>
-        prev.filter((portfolio) => portfolio.id !== item.id),
+        prev.filter((portfolio) => portfolio.id !== item.id)
       );
     } catch (err) {
       console.error(err);
     }
   };
+
   const handleUpdatePortfolio = async () => {
-  try {
-    const { error } = await supabase
-      .from("portfolio_items")
-      .update({
-        title: editTitle,
-        category: editCategory,
-      })
-      .eq("id", editingPortfolio.id);
-
-    if (error) throw error;
-
-    setPortfolioItems((prev) =>
-      prev.map((item) =>
-        item.id === editingPortfolio.id
-          ? {
-              ...item,
-              title: editTitle,
-              category: editCategory,
-            }
-          : item
-      )
-    );
-
-    setEditingPortfolio(null);
-  } catch (err) {
-    console.error(err);
-  }
-};
-  const fetchPortfolioItems = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("portfolio_items")
-        .select("*")
-        .eq("professional_id", profile.id)
-        .order("created_at", { ascending: false });
+        .update({
+          title: editTitle,
+          category: editCategory,
+        })
+        .eq("id", editingPortfolio.id);
 
       if (error) throw error;
-      setPortfolioItems(data || []);
+
+      setPortfolioItems((prev) =>
+        prev.map((item) =>
+          item.id === editingPortfolio.id
+            ? { ...item, title: editTitle, category: editCategory }
+            : item
+        )
+      );
+
+      setEditingPortfolio(null);
     } catch (err) {
       console.error(err);
     }
   };
 
-
-
   useEffect(() => {
     if (profile?.id) {
       fetchPortfolioItems();
+      fetchConnectionsCount();
     }
   }, [profile?.id]);
 
-    useEffect(() => {
-  const handlePortfolioUpdate = () => {
-    fetchPortfolioItems();
-  };
+  useEffect(() => {
+    const handlePortfolioUpdate = () => {
+      fetchPortfolioItems();
+    };
 
-  window.addEventListener(
-    "portfolio-updated",
-    handlePortfolioUpdate
-  );
-
-  return () => {
-    window.removeEventListener(
-      "portfolio-updated",
-      handlePortfolioUpdate
-    );
-  };
-}, []);
+    window.addEventListener("portfolio-updated", handlePortfolioUpdate);
+    return () => {
+      window.removeEventListener("portfolio-updated", handlePortfolioUpdate);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#09090b] text-neutral-100 antialiased font-sans selection:bg-white selection:text-black">
@@ -156,10 +167,23 @@ function ProfileView({ profile = {}, setShowUploadModal, setCurrentTab }) {
                 </h1>
                 <CheckCircle className="w-5 h-5 text-neutral-400 fill-neutral-900" />
               </div>
-              <p className="text-neutral-400 text-sm font-medium tracking-wide">
-                {profile.specializations?.join(" — ") ||
-                  "Creative Professional"}
-              </p>
+              
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium tracking-wide">
+                <p className="text-neutral-400">
+                  {profile.specializations?.join(" — ") || "Creative Professional"}
+                </p>
+                <span className="text-neutral-700 hidden sm:inline">•</span>
+                
+                {/* CONNECTIONS COUNT DISPLAYER */}
+                <button 
+                  onClick={() => setCurrentTab("connections")}
+                  className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5 text-xs font-mono font-semibold"
+                >
+                  <Users className="w-3.5 h-3.5 stroke-" />
+                  <span>{connectionsCount} Connections</span>
+                </button>
+              </div>
+
               <div className="flex items-center gap-1.5 text-xs text-neutral-500 pt-1">
                 <MapPin className="w-3.5 h-3.5" />
                 <span>
@@ -175,16 +199,10 @@ function ProfileView({ profile = {}, setShowUploadModal, setCurrentTab }) {
           <div className="flex items-center gap-3 self-start md:self-end">
             <button
               onClick={() => setShowUploadModal(true)}
-              className="h-10 bg-white text-black font-semibold text-xs px-5 rounded-lg hover:bg-neutral-200 transition-all flex items-center gap-1.5 tracking-wide"
+              className="h-10 bg-white text-black font-semibold text-xs px-5 rounded-lg hover:bg-neutral-200 transition-all flex items-center gap-1.5 tracking-wide shadow-md shadow-white/5 active:scale-95"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               Upload Work
-            </button>
-            <button
-              onClick={() => setCurrentTab("messaging")}
-              className="h-10 border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-900 text-neutral-300 text-xs px-5 rounded-lg transition-all tracking-wide"
-            >
-              Message
             </button>
           </div>
         </header>
@@ -233,16 +251,16 @@ function ProfileView({ profile = {}, setShowUploadModal, setCurrentTab }) {
                           <Trash2 className="w-4 h-4" />
                         </button>
                         <button
-  onClick={(e) => {
-    e.stopPropagation();
-    setEditingPortfolio(item);
-setEditTitle(item.title);
-setEditCategory(item.category || "");
-  }}
-  className="absolute top-2 right-12 z-10 bg-black/70 hover:bg-blue-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
->
-  <Pencil className="w-4 h-4" />
-</button>
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingPortfolio(item);
+                            setEditTitle(item.title);
+                            setEditCategory(item.category || "");
+                          }}
+                          className="absolute top-2 right-12 z-10 bg-black/70 hover:bg-blue-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
                         <img
                           src={item.thumbnail_url}
                           alt={item.title}
@@ -275,8 +293,7 @@ setEditCategory(item.category || "");
                     Index is empty
                   </h4>
                   <p className="text-xs text-neutral-600 mt-1 max-w-xs">
-                    No portfolio showreels or items have been listed by this
-                    user.
+                    No portfolio showreels or items have been listed by this user.
                   </p>
                 </div>
               )}
@@ -376,53 +393,55 @@ setEditCategory(item.category || "");
           </div>
         </div>
       )}
+
+      {/* EDIT MODAL */}
       {editingPortfolio && (
-  <div
-    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-    onClick={() => setEditingPortfolio(null)}
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="w-full max-w-md bg-[#111116] border border-white/10 rounded-xl p-5 space-y-4"
-    >
-      <h3 className="text-lg font-semibold text-white">
-        Edit Portfolio
-      </h3>
-
-      <input
-        type="text"
-        value={editTitle}
-        onChange={(e) => setEditTitle(e.target.value)}
-        placeholder="Portfolio Title"
-        className="w-full bg-[#181822] border border-white/10 rounded-lg px-3 h-10 text-white"
-      />
-
-      <input
-        type="text"
-        value={editCategory}
-        onChange={(e) => setEditCategory(e.target.value)}
-        placeholder="Category"
-        className="w-full bg-[#181822] border border-white/10 rounded-lg px-3 h-10 text-white"
-      />
-
-      <div className="flex justify-end gap-2">
-        <button
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setEditingPortfolio(null)}
-          className="px-4 h-10 border border-white/10 rounded-lg text-neutral-300"
         >
-          Cancel
-        </button>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-[#111116] border border-white/10 rounded-xl p-5 space-y-4"
+          >
+            <h3 className="text-lg font-semibold text-white">
+              Edit Portfolio
+            </h3>
 
-        <button
-          onClick={handleUpdatePortfolio}
-          className="px-4 h-10 bg-white text-black rounded-lg font-medium"
-        >
-          Save Changes
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Portfolio Title"
+              className="w-full bg-[#181822] border border-white/10 rounded-lg px-3 h-10 text-white focus:outline-none focus:border-white/20"
+            />
+
+            <input
+              type="text"
+              value={editCategory}
+              onChange={(e) => setEditCategory(e.target.value)}
+              placeholder="Category"
+              className="w-full bg-[#181822] border border-white/10 rounded-lg px-3 h-10 text-white focus:outline-none focus:border-white/20"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setEditingPortfolio(null)}
+                className="px-4 h-10 border border-white/10 rounded-lg text-neutral-300 hover:bg-white/5 transition-all text-xs font-medium"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleUpdatePortfolio}
+                className="px-4 h-10 bg-white text-black rounded-lg font-medium text-xs hover:bg-neutral-200 transition-all"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

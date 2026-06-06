@@ -2,11 +2,12 @@ import { Bell, ChevronDown } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 
-function ClientNavbar() {
+function ClientNavbar({ activeView, onViewChange }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [showJobsMenu, setShowJobsMenu] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   const isDashboardActive =
     location.pathname === "/client/dashboard";
@@ -14,6 +15,9 @@ function ClientNavbar() {
   const isJobsActive =
     location.pathname === "/client/create-job" ||
     location.pathname === "/client/jobs";
+
+    const isConnectionsActive =
+  location.pathname === "/client/connections";
 
   return (
     <header className="sticky top-0 z-40 bg-[#050507]/60 backdrop-blur-xl border-b border-white/[0.06] px-8 h-16 flex items-center justify-between">
@@ -84,6 +88,23 @@ function ClientNavbar() {
         >
           Applicants
         </button>
+
+        <button
+onClick={() => onViewChange("connections")}
+  className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
+    activeView === "connections"
+      ? "bg-white/[0.07] border border-white/[0.08] text-white shadow-xl"
+      : "text-neutral-400 hover:text-neutral-200"
+  }`}
+>
+  Connections
+
+  {requestCount > 0 && (
+    <span className="min-w-[16px] h-[16px] px-1 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center">
+      {requestCount}
+    </span>
+  )}
+</button>
 
         <button
           className="px-4 py-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-all"

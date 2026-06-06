@@ -1,3 +1,4 @@
+// ProfileViewPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom'; 
 import { 
@@ -5,14 +6,14 @@ import {
   MapPin, 
   Link as LinkIcon, 
   Calendar, 
-  MessageSquare, 
   UserPlus, 
   UserCheck, 
+  UserMinus,
   Play,
   FileText,
   ArrowUpRight,
-  TrendingUp,
-  Award
+  Award,
+  Users
 } from 'lucide-react';
 import ClientNavbar from '../components/client/ClientNavbar';
 import { supabase } from '../lib/supabase';
@@ -20,6 +21,11 @@ import { supabase } from '../lib/supabase';
 const ProfileViewPage = ({ professionalId }) => {
   const { id } = useParams();
   const targetId = professionalId || id;
+
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [connectionRowId, setConnectionRowId] = useState(null);
+  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [connectionsCount, setConnectionsCount] = useState(0);
 
   const [profile, setProfile] = useState(null);
   const [portfolioItems, setPortfolioItems] = useState([]);
@@ -34,6 +40,10 @@ const ProfileViewPage = ({ professionalId }) => {
         setLoading(true);
         setError(null);
 
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // 1. Fetch Profile Info
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
@@ -42,7 +52,45 @@ const ProfileViewPage = ({ professionalId }) => {
 
         if (profileError) throw profileError;
         setProfile(profileData);
+        
+        // 2. Fetch Check Pending Request Status
+        const { data: requestData } = await supabase
+          .from("connection_requests")
+          .select("*")
+          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${user.id})`)
+          .maybeSingle();
 
+        if (requestData) {
+          setConnectionStatus(requestData.status);
+        } else {
+          // 3. If no pending request row exists, check the actual accepted connections table
+          const { data: activeConnection } = await supabase
+            .from("connections")
+            .select("id")
+            .or(`and(user_a.eq.${user.id},user_b.eq.${targetId}),and(user_a.eq.${targetId},user_b.eq.${user.id})`)
+            .maybeSingle();
+
+          if (activeConnection) {
+            setConnectionStatus("accepted");
+            setConnectionRowId(activeConnection.id); 
+          } else {
+            setConnectionStatus(null);
+          }
+        }
+
+        setCheckingConnection(false);
+
+        // 4. Fetch total active connections count for this profile
+        const { count, error: countError } = await supabase
+          .from("connections")
+          .select("*", { count: 'exact', head: true })
+          .or(`user_a.eq.${targetId},user_b.eq.${targetId}`);
+
+        if (!countError) {
+          setConnectionsCount(count || 0);
+        }
+
+        // 5. Batch fetch content feeds
         const [portfolioRes, postsRes] = await Promise.all([
           supabase
             .from("portfolio_items")
@@ -75,23 +123,46 @@ const ProfileViewPage = ({ professionalId }) => {
     }
   }, [targetId]);
 
-  const toggleFollow = async () => {
-    if (!profile) return;
-
-    setProfile(prev => ({
-      ...prev,
-      isFollowing: !prev.isFollowing,
-      followers_count: prev.isFollowing ? (prev.followers_count || 1) - 1 : (prev.followers_count || 0) + 1
-    }));
-
+  const sendConnectionRequest = async () => {
     try {
-      await fetch(`/api/professionals/${targetId}/follow`, { method: 'POST' });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("connection_requests")
+        .insert({
+          sender_id: user.id,
+          receiver_id: targetId,
+        });
+
+      if (error) throw error;
+      setConnectionStatus("pending");
     } catch (err) {
-      console.error("Failed to sync follow state to backend", err);
+      console.error("Error sending request:", err);
     }
   };
 
-  // Modern Structural Skeleton Loader
+  const removeConnection = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setConnectionStatus(null);
+      setConnectionRowId(null);
+      setConnectionsCount(prev => Math.max(0, prev - 1));
+
+      const { error } = await supabase
+        .from("connections")
+        .delete()
+        .or(`id.eq.${connectionRowId},and(user_a.eq.${user.id},user_b.eq.${targetId}),and(user_a.eq.${targetId},user_b.eq.${user.id})`);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error breaking active connection:", err);
+      window.location.reload();
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 antialiased animate-pulse">
@@ -114,7 +185,7 @@ const ProfileViewPage = ({ professionalId }) => {
                 <div className="h-3 bg-zinc-900 rounded w-5/6" />
               </div>
             </div>
-            <div className="h-36 bg-zinc-900/50 rounded-2xl border border-zinc-900" />
+            <div className="h-28 bg-zinc-900/50 rounded-2xl border border-zinc-900" />
           </div>
         </div>
       </div>
@@ -170,34 +241,49 @@ const ProfileViewPage = ({ professionalId }) => {
             />
           </div>
           
-          {/* Main Actions Box */}
-          <div className="flex items-center gap-3 sm:pb-2 w-full sm:w-auto">
-            <button 
-              onClick={toggleFollow}
-              className={`h-11 px-6 flex-1 sm:flex-none rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 flex items-center justify-center gap-2 active:scale-95 border ${
-                profile.isFollowing 
-                  ? "bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 backdrop-blur-sm shadow-inner" 
-                  : "bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
-              }`}
-            >
-              {profile.isFollowing ? (
-                <>
-                  <UserCheck className="w-4 h-4 text-indigo-400" />
-                  <span>Following</span>
-                </>
-              ) : (
-                <>
+          {/* Action Buttons Panel */}
+          {!checkingConnection && (
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              {!connectionStatus && (
+                <button
+                  onClick={sendConnectionRequest}
+                  className="h-11 px-6 flex-1 sm:flex-none rounded-xl text-xs font-semibold tracking-wide transition-all duration-300 flex items-center justify-center gap-2 active:scale-95 border bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/10"
+                >
                   <UserPlus className="w-4 h-4" />
-                  <span>Follow</span>
-                </>
+                  <span>Connect</span>
+                </button>
               )}
-            </button>
 
-            <button className="h-11 px-6 flex-1 sm:flex-none bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 rounded-xl text-xs font-semibold tracking-wide text-zinc-200 transition-all duration-300 flex items-center justify-center gap-2 active:scale-95 shadow-sm group backdrop-blur-sm">
-              <MessageSquare className="w-4 h-4 text-zinc-400 group-hover:text-indigo-400 transition-colors" />
-              <span>Inquire / Hire</span>
-            </button>
-          </div>
+              {connectionStatus === "pending" && (
+                <button
+                  disabled
+                  className="h-11 px-6 flex-1 sm:flex-none rounded-xl text-xs font-semibold tracking-wide border bg-zinc-900 border-zinc-800 text-zinc-400 cursor-not-allowed"
+                >
+                  Pending
+                </button>
+              )}
+
+              {connectionStatus === "accepted" && (
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {/* Connected Label Badge */}
+                  <div className="h-11 px-5 rounded-xl text-xs font-semibold tracking-wide border bg-emerald-500/5 border-emerald-500/10 text-emerald-400 flex items-center justify-center gap-2 select-none">
+                    <UserCheck className="w-4 h-4" />
+                    <span>Connected</span>
+                  </div>
+
+                  {/* Clean Brutalist Disconnect Button */}
+                  <button
+                    onClick={removeConnection}
+                    className="h-11 px-4 rounded-xl text-xs font-medium border border-white/5 bg-white/[0.02] text-neutral-400 hover:text-rose-400 hover:bg-rose-950/20 hover:border-rose-900/40 transition-all duration-200 flex items-center justify-center gap-1.5 group"
+                    title="Remove Connection"
+                  >
+                    <UserMinus className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+                    <span className="hidden sm:inline">Remove</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Core Biography & Details Panel */}
@@ -252,21 +338,16 @@ const ProfileViewPage = ({ professionalId }) => {
             </div>
           </div>
 
-          {/* Metric Counter Card Side-panel */}
-          <div className="p-6 rounded-2xl bg-gradient-to-b from-zinc-900/50 to-zinc-900/10 border border-zinc-900 backdrop-blur-xl grid grid-cols-3 md:grid-cols-1 gap-4 shadow-xl">
+          {/* Cleaned Metric Counter Card Side-panel (Works & Connection Count) */}
+          <div className="p-5 rounded-2xl bg-gradient-to-b from-zinc-900/50 to-zinc-900/10 border border-zinc-900/80 backdrop-blur-xl grid grid-cols-2 md:grid-cols-1 gap-4 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
               <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Works</span>
               <span className="text-xl font-bold text-zinc-100 font-mono tracking-tight">{portfolioItems.length}</span>
             </div>
             <div className="h-[1px] bg-zinc-800/40 hidden md:block" />
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Followers</span>
-              <span className="text-xl font-bold text-zinc-100 font-mono tracking-tight">{(profile.followers_count || 0).toLocaleString()}</span>
-            </div>
-            <div className="h-[1px] bg-zinc-800/40 hidden md:block" />
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Following</span>
-              <span className="text-xl font-bold text-zinc-100 font-mono tracking-tight">{(profile.following_count || 0).toLocaleString()}</span>
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Connections</span>
+              <span className="text-xl font-bold text-zinc-100 font-mono tracking-tight">{connectionsCount.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -303,7 +384,6 @@ const ProfileViewPage = ({ professionalId }) => {
         {/* Content Render Logic Switcher */}
         <div className="mt-8">
           {activeTab === 'portfolio' ? (
-            /* TAB 1: ENHANCED PORTFOLIO GRID */
             portfolioItems.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {portfolioItems.map((item) => (
@@ -318,14 +398,12 @@ const ProfileViewPage = ({ professionalId }) => {
                       className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                     />
                     
-                    {/* Play Overlay Badge */}
                     {item.video_url && (
                       <div className="absolute top-4 right-4 p-2.5 bg-zinc-950/80 backdrop-blur-md border border-zinc-800/40 rounded-xl opacity-90 group-hover:opacity-100 group-hover:bg-indigo-600 group-hover:border-indigo-500 transition-all duration-300 shadow-lg">
                         <Play className="w-3.5 h-3.5 fill-current text-white" />
                       </div>
                     )}
 
-                    {/* Gradient Overlay Container */}
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-5 flex flex-col justify-end">
                       <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300 ease-out">
                         <p className="text-sm font-semibold text-white truncate w-full">
@@ -351,7 +429,6 @@ const ProfileViewPage = ({ professionalId }) => {
               </div>
             )
           ) : (
-            /* TAB 2: REFINED PROFESSIONAL POSTS */
             posts.length > 0 ? (
               <div className="max-w-2xl mx-auto space-y-6">
                 {posts.map((post) => (
