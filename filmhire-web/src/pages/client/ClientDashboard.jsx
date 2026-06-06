@@ -28,10 +28,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase"; 
 import ClientNavbar from "../../components/client/ClientNavbar";
+import { usePresence } from "../../context/PresenceContext";
 
-// ==========================================
-// PLACEHOLDER INTERNAL SUB-COMPONENTS
-// ==========================================
+
 const MessagesView = ({
   conversations,
   activeChatId,
@@ -83,6 +82,8 @@ const CreateJob = () => (
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
+  const { onlineUsers } = usePresence();
+
 
   // Basic Navigation View States
   const [activeView, setActiveView] = useState("talent-feed");
@@ -201,7 +202,7 @@ const ClientDashboard = () => {
     const checkAccess = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/login"); return; }
-
+      
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -360,6 +361,7 @@ const ClientDashboard = () => {
         );
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#040408] text-slate-200 flex flex-col antialiased selection:bg-cyan-500/20 selection:text-cyan-300">

@@ -8,8 +8,7 @@ import {
     CheckCircle,
 } from "lucide-react";
 import ClientNavbar from "../../components/client/ClientNavbar";
-
-
+import { usePresence } from "../../context/PresenceContext";
 
 function ClientWorkspacePage() {
     const [workspaces, setWorkspaces] = useState([]);
@@ -24,6 +23,11 @@ function ClientWorkspacePage() {
     const chatEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const [typingUser, setTypingUser] = useState(null);
+    const [editingMessageId, setEditingMessageId] = useState(null);
+    const [editInput, setEditInput] = useState("");
+    const [openMenuId, setOpenMenuId] = useState(null);
+
+    const { onlineUsers } = usePresence();
 
     useEffect(() => {
         getCurrentUser();
@@ -198,35 +202,35 @@ function ClientWorkspacePage() {
                 }
             )
             .on(
-  "postgres_changes",
-  {
-    event: "*",
-    schema: "public",
-    table: "typing_status",
-  },
-  (payload) => {
-    const typingData = payload.new;
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "typing_status",
+                },
+                (payload) => {
+                    const typingData = payload.new;
 
-    if (
-      typingData.workspace_id === selectedWorkspace.id &&
-      typingData.user_id !== currentUser?.id
-    ) {
-      if (typingData.is_typing) {
-        setTypingUser(
-          selectedWorkspace.professional?.full_name
-        );
-      } else {
-        setTypingUser(null);
-      }
-    }
-  }
-)
+                    if (
+                        typingData.workspace_id === selectedWorkspace.id &&
+                        typingData.user_id !== currentUser?.id
+                    ) {
+                        if (typingData.is_typing) {
+                            setTypingUser(
+                                selectedWorkspace.professional?.full_name
+                            );
+                        } else {
+                            setTypingUser(null);
+                        }
+                    }
+                }
+            )
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [selectedWorkspace,currentUser]);
+    }, [selectedWorkspace, currentUser]);
 
 
 
@@ -248,32 +252,32 @@ function ClientWorkspacePage() {
 
 
     const handleTyping = async (value) => {
-  setMessageInput(value);
+        setMessageInput(value);
 
-  if (!selectedWorkspace || !currentUser) return;
+        if (!selectedWorkspace || !currentUser) return;
 
-  await supabase
-    .from("typing_status")
-    .upsert({
-      workspace_id: selectedWorkspace.id,
-      user_id: currentUser.id,
-      is_typing: true,
-      updated_at: new Date().toISOString(),
-    });
+        await supabase
+            .from("typing_status")
+            .upsert({
+                workspace_id: selectedWorkspace.id,
+                user_id: currentUser.id,
+                is_typing: true,
+                updated_at: new Date().toISOString(),
+            });
 
-  clearTimeout(typingTimeoutRef.current);
+        clearTimeout(typingTimeoutRef.current);
 
-  typingTimeoutRef.current = setTimeout(async () => {
-    await supabase
-      .from("typing_status")
-      .upsert({
-        workspace_id: selectedWorkspace.id,
-        user_id: currentUser.id,
-        is_typing: false,
-        updated_at: new Date().toISOString(),
-      });
-  }, 2000);
-};
+        typingTimeoutRef.current = setTimeout(async () => {
+            await supabase
+                .from("typing_status")
+                .upsert({
+                    workspace_id: selectedWorkspace.id,
+                    user_id: currentUser.id,
+                    is_typing: false,
+                    updated_at: new Date().toISOString(),
+                });
+        }, 2000);
+    };
 
     const handleSendMessage = async () => {
         if (
@@ -300,6 +304,45 @@ function ClientWorkspacePage() {
 
             setMessageInput("");
 
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleDeleteMessage = async (messageId) => {
+    try {
+        const { error } = await supabase
+            .from("messages")
+            .update({
+                deleted: true,
+                content: "This message was deleted",
+            })
+            .eq("id", messageId);
+
+        if (error) throw error;
+
+        setOpenMenuId(null);
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+    const handleEditMessage = async () => {
+        if (!editInput.trim()) return;
+
+        try {
+            const { error } = await supabase
+                .from("messages")
+                .update({
+                    content: editInput.trim(),
+                    edited: true,
+                })
+                .eq("id", editingMessageId);
+
+            if (error) throw error;
+
+            setEditingMessageId(null);
+            setEditInput("");
         } catch (err) {
             console.error(err);
         }
@@ -375,9 +418,22 @@ function ClientWorkspacePage() {
                                             </span>
                                         </div>
 
-                                        <p className="text-white">
-                                            {selectedWorkspace.professional?.full_name}
-                                        </p>
+                                        <div>
+                                            <p className="text-white">
+                                                {selectedWorkspace.professional?.full_name}
+                                            </p>
+
+                                            <p
+                                                className={`text-xs ${onlineUsers[selectedWorkspace.professional?.id]
+                                                    ? "text-green-400"
+                                                    : "text-neutral-500"
+                                                    }`}
+                                            >
+                                                {onlineUsers[selectedWorkspace.professional?.id]
+                                                    ? "🟢 Online"
+                                                    : "⚫ Offline"}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <div className="bg-black/20 rounded-lg p-4">
@@ -469,12 +525,94 @@ function ClientWorkspacePage() {
                                                     }`}
                                             >
                                                 <div
-                                                    className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${isMine
-                                                        ? "bg-indigo-600 text-white"
-                                                        : "bg-[#181822] text-neutral-200"
+                                                    className={`group relative max-w-[80%] px-3 py-2 rounded-lg text-sm ${isMine
+                                                            ? "bg-indigo-600 text-white"
+                                                            : "bg-[#181822] text-neutral-200"
                                                         }`}
                                                 >
-                                                    <div>{msg.content}</div>
+                                                    {editingMessageId === msg.id ? (
+    <div className="space-y-2">
+        <input
+            value={editInput}
+            onChange={(e) => setEditInput(e.target.value)}
+            className="w-full bg-[#181822] border border-white/10 rounded px-2 py-1 text-sm"
+        />
+
+        <div className="flex gap-2 justify-end">
+            <button
+                onClick={handleEditMessage}
+                className="text-xs px-2 py-1 bg-green-600 rounded"
+            >
+                Save
+            </button>
+
+            <button
+                onClick={() => {
+                    setEditingMessageId(null);
+                    setEditInput("");
+                }}
+                className="text-xs px-2 py-1 bg-red-600 rounded"
+            >
+                Cancel
+            </button>
+        </div>
+    </div>
+) : (
+    <div>
+    {msg.deleted ? (
+        <span className="italic text-neutral-400">
+            This message was deleted
+        </span>
+    ) : (
+        <>
+            {msg.content}
+
+            {msg.edited && (
+                <span className="ml-2 text-[10px] text-neutral-400 italic">
+                    (edited)
+                </span>
+            )}
+        </>
+    )}
+</div>
+)}  
+
+{isMine && !msg.deleted && editingMessageId !== msg.id && (
+        <>
+        <button
+            onClick={() =>
+                setOpenMenuId(
+                    openMenuId === msg.id ? null : msg.id
+                )
+            }
+            className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition text-xs"
+        >
+            ⋮
+        </button>
+
+        {openMenuId === msg.id && (
+            <div className="absolute right-0 top-6 bg-[#1f1f2b] border border-white/10 rounded-md overflow-hidden shadow-lg z-50 min-w-[100px]">
+                <button
+                    onClick={() => {
+                        setEditingMessageId(msg.id);
+                        setEditInput(msg.content);
+                        setOpenMenuId(null);
+                    }}
+                    className="block w-full text-left px-3 py-2 text-xs hover:bg-white/10"
+                >
+                    Edit
+                </button>
+
+               <button
+    onClick={() => handleDeleteMessage(msg.id)}
+    className="block w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-white/10"
+>
+    Delete
+</button>
+            </div>
+        )}
+    </>
+)}
 
                                                     <div className="flex items-center gap-0.5 mt-1 text-[10px] opacity-70 justify-end">
                                                         <span>
@@ -487,8 +625,8 @@ function ClientWorkspacePage() {
                                                         {isMine && (
                                                             <span
                                                                 className={`text-[11px] ${msg.read
-                                                                        ? "text-sky-400"
-                                                                        : "text-neutral-500"
+                                                                    ? "text-sky-400"
+                                                                    : "text-neutral-500"
                                                                     }`}
                                                             >
                                                                 {msg.read ? "✓✓" : "✓"}
@@ -501,10 +639,10 @@ function ClientWorkspacePage() {
                                     })}
 
                                     {typingUser && (
-  <div className="text-xs text-neutral-400 italic">
-    {typingUser} is typing...
-  </div>
-)}
+                                        <div className="text-xs text-neutral-400 italic">
+                                            {typingUser} is typing...
+                                        </div>
+                                    )}
                                     <div ref={chatEndRef} />
 
                                 </div>
@@ -518,7 +656,7 @@ function ClientWorkspacePage() {
                                 type="text"
                                 value={messageInput}
                                 onChange={(e) =>
-  handleTyping(e.target.value)
+                                    handleTyping(e.target.value)
                                 }
                                 onKeyDown={(e) =>
                                     e.key === "Enter" &&

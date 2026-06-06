@@ -7,162 +7,185 @@ import {
   Wallet,
   CheckCircle,
 } from "lucide-react";
+import { usePresence } from "../../context/PresenceContext";
 
 function ProfessionalWorkspaceView() {
   const [workspaces, setWorkspaces] = useState([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-const [messages, setMessages] = useState([]);
-const [messageInput, setMessageInput] = useState("");
-const [typingUser, setTypingUser] = useState(null);
-
-
+  const [messages, setMessages] = useState([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [typingUser, setTypingUser] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
 
+  const [editingMessageId, setEditingMessageId] = useState(null);
+const [editInput, setEditInput] = useState("");
+const [openMenuId, setOpenMenuId] = useState(null);
 
-const chatEndRef = useRef(null);
+  const chatEndRef = useRef(null);
+     const { onlineUsers } = usePresence();
+     
+  const typingTimeoutRef = useRef(null);
 
+  useEffect(() => {
+    getCurrentUser();
+  }, []);
 
-const typingTimeoutRef = useRef(null);
-
-useEffect(() => {
-  getCurrentUser();
-}, []);
-
-useEffect(() => {
-  chatEndRef.current?.scrollIntoView({
-    behavior: "smooth",
-  });
-}, [messages]);
-
-
-useEffect(() => {
-  if (!selectedWorkspace?.id) return;
-
-  const channel = supabase
-    .channel(`messages-${selectedWorkspace.id}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "messages",
-      },
-      (payload) => {
-  const newMessage = payload.new;
-
-  if (payload.eventType === "INSERT") {
-    if (newMessage.job_id === selectedWorkspace.id) {
-      setMessages((prev) => [...prev, newMessage]);
-    }
-
-    fetchWorkspaces();
-
-    if (newMessage.receiver_id === currentUser?.id) {
-      fetchUnreadCounts(currentUser.id);
-    }
-  }
-
-  if (payload.eventType === "UPDATE") {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === newMessage.id ? newMessage : msg
-      )
-    );
-  }
-}
-    )
-    .on(
-  "postgres_changes",
-  {
-    event: "*",
-    schema: "public",
-    table: "typing_status",
-  },
-  async (payload) => {
-    const typingData = payload.new;
-
-    if (
-      typingData.workspace_id === selectedWorkspace.id &&
-      typingData.user_id !== currentUser?.id
-    ) {
-      if (typingData.is_typing) {
-  setTypingUser(
-    selectedWorkspace.client?.company_name ||
-      selectedWorkspace.client?.full_name
-  );
-} else {
-  setTypingUser(null);
-}
-    }
-  }
-)
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [selectedWorkspace,currentUser]);
-
-    const fetchUnreadCounts = async (userId) => {
-  try {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("job_id")
-      .eq("receiver_id", userId)
-      .eq("read", false);
-
-    if (error) throw error;
-
-    const counts = {};
-
-    data?.forEach((msg) => {
-      counts[msg.job_id] = (counts[msg.job_id] || 0) + 1;
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({
+      behavior: "smooth",
     });
+  }, [messages]);
 
-    setUnreadCounts(counts);
-  } catch (err) {
-    console.error(err);
-  }
-};
 
-    const getCurrentUser = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    if (!selectedWorkspace?.id) return;
 
-  setCurrentUser(user);
+    const channel = supabase
+      .channel(`messages-${selectedWorkspace.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          const newMessage = payload.new;
 
-  if (user) {
-    fetchUnreadCounts(user.id);
-  }
-};
+          if (payload.eventType === "INSERT") {
+            if (newMessage.job_id === selectedWorkspace.id) {
+              setMessages((prev) => [...prev, newMessage]);
+            }
 
-const markMessagesAsRead = async (jobId) => {
-  if (!currentUser) return;
+            fetchWorkspaces();
+
+            if (newMessage.receiver_id === currentUser?.id) {
+              fetchUnreadCounts(currentUser.id);
+            }
+          }
+
+          if (payload.eventType === "UPDATE") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === newMessage.id ? newMessage : msg
+              )
+            );
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "typing_status",
+        },
+        async (payload) => {
+          const typingData = payload.new;
+
+          if (
+            typingData.workspace_id === selectedWorkspace.id &&
+            typingData.user_id !== currentUser?.id
+          ) {
+            if (typingData.is_typing) {
+              setTypingUser(
+                selectedWorkspace.client?.company_name ||
+                selectedWorkspace.client?.full_name
+              );
+            } else {
+              setTypingUser(null);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedWorkspace, currentUser]);
+
+  const fetchUnreadCounts = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("job_id")
+        .eq("receiver_id", userId)
+        .eq("read", false);
+
+      if (error) throw error;
+
+      const counts = {};
+
+      data?.forEach((msg) => {
+        counts[msg.job_id] = (counts[msg.job_id] || 0) + 1;
+      });
+
+      setUnreadCounts(counts);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleEditMessage = async () => {
+  if (!editInput.trim()) return;
 
   try {
     const { error } = await supabase
       .from("messages")
-      .update({ read: true })
-      .eq("job_id", jobId)
-      .eq("receiver_id", currentUser.id)
-      .eq("read", false);
+      .update({
+        content: editInput.trim(),
+        edited: true,
+      })
+      .eq("id", editingMessageId);
 
     if (error) throw error;
 
-    await fetchUnreadCounts(currentUser.id);
+    setEditingMessageId(null);
+    setEditInput("");
   } catch (err) {
     console.error(err);
   }
 };
 
-useEffect(() => {
-  if (selectedWorkspace?.id) {
-    fetchMessages(selectedWorkspace.id);
-    markMessagesAsRead(selectedWorkspace.id);
-  }
-}, [selectedWorkspace,currentUser]);
+  const getCurrentUser = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setCurrentUser(user);
+
+    if (user) {
+      fetchUnreadCounts(user.id);
+    }
+  };
+
+  const markMessagesAsRead = async (jobId) => {
+    if (!currentUser) return;
+
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .update({ read: true })
+        .eq("job_id", jobId)
+        .eq("receiver_id", currentUser.id)
+        .eq("read", false);
+
+      if (error) throw error;
+
+      await fetchUnreadCounts(currentUser.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedWorkspace?.id) {
+      fetchMessages(selectedWorkspace.id);
+      markMessagesAsRead(selectedWorkspace.id);
+    }
+  }, [selectedWorkspace, currentUser]);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -200,141 +223,152 @@ useEffect(() => {
           ...item.jobs,
         })) || [];
 
-   const jobsWithLastMessage = await Promise.all(
-  jobs.map(async (job) => {
-    const { data: lastMessageData } = await supabase
-      .from("messages")
-      .select("content, created_at")
-      .eq("job_id", job.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      const jobsWithLastMessage = await Promise.all(
+        jobs.map(async (job) => {
+          const { data: lastMessageData } = await supabase
+            .from("messages")
+            .select("content, created_at")
+            .eq("job_id", job.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-    return {
-  ...job,
-  lastMessage:
-    lastMessageData?.content || "No messages yet",
-  lastMessageAt:
-    lastMessageData?.created_at || null,
-};
-  })
-);
+          return {
+            ...job,
+            lastMessage:
+              lastMessageData?.content || "No messages yet",
+            lastMessageAt:
+              lastMessageData?.created_at || null,
+          };
+        })
+      );
 
 
- jobsWithLastMessage.sort((a, b) => {
-  if (!a.lastMessageAt) return 1;
-  if (!b.lastMessageAt) return -1;
+      jobsWithLastMessage.sort((a, b) => {
+        if (!a.lastMessageAt) return 1;
+        if (!b.lastMessageAt) return -1;
 
-  return (
-    new Date(b.lastMessageAt) -
-    new Date(a.lastMessageAt)
-  );
-});
+        return (
+          new Date(b.lastMessageAt) -
+          new Date(a.lastMessageAt)
+        );
+      });
 
-setWorkspaces(jobsWithLastMessage);
+      setWorkspaces(jobsWithLastMessage);
 
-if (!selectedWorkspace && jobsWithLastMessage.length > 0) {
-  setSelectedWorkspace(jobsWithLastMessage[0]);
-}
+      if (!selectedWorkspace && jobsWithLastMessage.length > 0) {
+        setSelectedWorkspace(jobsWithLastMessage[0]);
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
   const fetchMessages = async (jobId) => {
-  try {
+    try {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      setMessages(data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleTyping = async (value) => {
+    setMessageInput(value);
+
+    if (!selectedWorkspace || !currentUser) return;
+
     const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("job_id", jobId)
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-
-    setMessages(data || []);
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const handleTyping = async (value) => {
-  setMessageInput(value);
-
-    console.log("typing...");
-
-
-  if (!selectedWorkspace || !currentUser) return;
-
-  const { data, error } = await supabase
-  .from("typing_status")
-  .upsert({
-    workspace_id: selectedWorkspace.id,
-    user_id: currentUser.id,
-    is_typing: true,
-    updated_at: new Date().toISOString(),
-  })
-  .select();
-
-console.log("UPSERT RESULT:", JSON.stringify(data, null, 2));
-console.log("UPSERT ERROR:", error);
-
-  clearTimeout(typingTimeoutRef.current);
-
-  typingTimeoutRef.current = setTimeout(async () => {
-    await supabase
       .from("typing_status")
       .upsert({
         workspace_id: selectedWorkspace.id,
         user_id: currentUser.id,
-        is_typing: false,
+        is_typing: true,
         updated_at: new Date().toISOString(),
-      });
-  }, 2000);
+      })
+      .select();
+
+    clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(async () => {
+      await supabase
+        .from("typing_status")
+        .upsert({
+          workspace_id: selectedWorkspace.id,
+          user_id: currentUser.id,
+          is_typing: false,
+          updated_at: new Date().toISOString(),
+        });
+    }, 2000);
+  };
+
+
+  const handleSendMessage = async () => {
+    if (
+      !messageInput.trim() ||
+      !selectedWorkspace ||
+      !currentUser
+    )
+      return;
+
+    try {
+      const receiverId =
+        selectedWorkspace.client?.id;
+
+      const { error } = await supabase
+        .from("messages")
+        .insert({
+          job_id: selectedWorkspace.id,
+          sender_id: currentUser.id,
+          receiver_id: receiverId,
+          content: messageInput.trim(),
+        });
+
+      if (error) throw error;
+
+      setMessageInput("");
+
+      const { data } = await supabase
+        .from("typing_status")
+        .upsert({
+          workspace_id: selectedWorkspace.id,
+          user_id: currentUser.id,
+          is_typing: true,
+          updated_at: new Date().toISOString(),
+        })
+        .select();
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+        const { error } = await supabase
+            .from("messages")
+            .update({
+                deleted: true,
+                content: "This message was deleted",
+            })
+            .eq("id", messageId);
+
+        if (error) throw error;
+
+        setOpenMenuId(null);
+    } catch (err) {
+        console.error(err);
+    }
 };
 
-
-const handleSendMessage = async () => {
-  if (
-    !messageInput.trim() ||
-    !selectedWorkspace ||
-    !currentUser
-  )
-    return;
-
-  try {
-    const receiverId =
-      selectedWorkspace.client?.id;
-
-    const { error } = await supabase
-      .from("messages")
-      .insert({
-        job_id: selectedWorkspace.id,
-        sender_id: currentUser.id,
-        receiver_id: receiverId,
-        content: messageInput.trim(),
-      });
-
-    if (error) throw error;
-
-    setMessageInput("");
-
-    const { data } = await supabase
-  .from("typing_status")
-  .upsert({
-    workspace_id: selectedWorkspace.id,
-    user_id: currentUser.id,
-    is_typing: true,
-    updated_at: new Date().toISOString(),
-  })
-  .select();
-
-console.log("typing true", data, error);
-
-  } catch (err) {
-    console.error(err);
-  }
-};
-
+  
 
   return (
     <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden h-[650px] flex">
@@ -354,27 +388,26 @@ console.log("typing true", data, error);
               key={job.id}
               onClick={() => setSelectedWorkspace(job)}
               className={`w-full text-left p-4 border-b border-white/[0.04]
-              ${
-                selectedWorkspace?.id === job.id
+              ${selectedWorkspace?.id === job.id
                   ? "bg-white/[0.04]"
                   : "hover:bg-white/[0.02]"
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm text-white font-medium">
                   {job.title}
                 </p>
 
-  {unreadCounts[job.id] > 0 && (
-    <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">
-      {unreadCounts[job.id]}
-    </span>
-  )}
-</div>
+                {unreadCounts[job.id] > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+                    {unreadCounts[job.id]}
+                  </span>
+                )}
+              </div>
 
               <p className="text-xs text-neutral-400 mt-1 truncate">
-  {job.lastMessage}
-</p>
+                {job.lastMessage}
+              </p>
             </button>
           ))}
         </div>
@@ -404,10 +437,24 @@ console.log("typing true", data, error);
                   </span>
                 </div>
 
-                <p className="text-white">
-                  {selectedWorkspace.client?.company_name ||
-                    selectedWorkspace.client?.full_name}
-                </p>
+                <div>
+  <p className="text-white">
+    {selectedWorkspace.client?.company_name ||
+      selectedWorkspace.client?.full_name}
+  </p>
+
+  <p
+    className={`text-xs ${
+      onlineUsers[selectedWorkspace.client?.id]
+        ? "text-green-400"
+        : "text-neutral-500"
+    }`}
+  >
+    {onlineUsers[selectedWorkspace.client?.id]
+      ? "🟢 Online"
+      : "⚫ Offline"}
+  </p>
+</div>
               </div>
 
               <div className="bg-black/20 rounded-lg p-4">
@@ -470,104 +517,182 @@ console.log("typing true", data, error);
         )}
       </div>
 
-     {/* RIGHT */}
-<div className="w-[380px] border-l border-white/[0.06] flex flex-col">
-  <div className="p-4 border-b border-white/[0.06]">
-    <h3 className="text-sm font-semibold text-white">
-      Project Chat
-    </h3>
-  </div>
+      {/* RIGHT */}
+      <div className="w-[380px] border-l border-white/[0.06] flex flex-col">
+        <div className="p-4 border-b border-white/[0.06]">
+          <h3 className="text-sm font-semibold text-white">
+            Project Chat
+          </h3>
+        </div>
 
-  <div className="flex-1 overflow-y-auto p-4">
-  {messages.length === 0 ? (
-    <div className="h-full flex items-center justify-center text-neutral-500 text-sm">
-      Start your conversation here
-    </div>
-  ) : (
-<div className="space-y-3">
-      {messages.map((msg) => {
-      const isMine =
-        msg.sender_id === currentUser?.id;
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-neutral-500 text-sm">
+              Start your conversation here
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {messages.map((msg) => {
+                const isMine =
+                  msg.sender_id === currentUser?.id;
 
-      return (
-        <div
-          key={msg.id}
-          className={`flex ${
-            isMine
-              ? "justify-end"
-              : "justify-start"
-          }`}
-        >
-          <div
-  className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex ${isMine
+                        ? "justify-end"
+                        : "justify-start"
+                      }`}
+                  >
+<div
+  className={`group relative max-w-[80%] px-3 py-2 rounded-lg text-sm ${
     isMine
       ? "bg-indigo-600 text-white"
       : "bg-[#181822] text-neutral-200"
   }`}
 >
-  <div>{msg.content}</div>
-
-  <div className="text-[10px] mt-1 opacity-70 flex items-center gap-1">
-  <span>
-    {new Date(msg.created_at).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}
-  </span>
-
- {isMine && (
-  <span
-    className={`text-[11px] font-semibold ${
-      msg.read
-        ? "text-sky-400"
-        : "text-neutral-400"
-    }`}
-  >
-    {msg.read ? "✓✓" : "✓"}
-  </span>
-)}
-</div>
-</div>
-        </div>
-      );
-    })}
-    {typingUser && (
-  <div className="text-xs text-neutral-400 italic">
-    {typingUser} is typing...
-  </div>
-)}
-
-      <div ref={chatEndRef} />
-
-  </div>
-  )}
-</div>
-
-  
-
-  <div className="p-3 border-t border-white/[0.06] flex gap-2">
+    {editingMessageId === msg.id ? (
+  <div className="space-y-2">
     <input
-      type="text"
-      value={messageInput}
-      onChange={(e) =>
-  handleTyping(e.target.value)
-      }
-      onKeyDown={(e) =>
-        e.key === "Enter" &&
-        handleSendMessage()
-      }
-      placeholder="Type message..."
-      className="flex-1 bg-[#181822] border border-white/[0.06] rounded px-3 text-sm text-white outline-none"
+      value={editInput}
+      onChange={(e) => setEditInput(e.target.value)}
+      className="w-full bg-[#181822] border border-white/10 rounded px-2 py-1 text-sm"
     />
 
-    <button
-      onClick={handleSendMessage}
-      className="px-4 bg-indigo-600 hover:bg-indigo-500 rounded text-white text-sm"
-    >
-      Send
-    </button>
+    <div className="flex gap-2 justify-end">
+      <button
+        onClick={handleEditMessage}
+        className="text-xs px-2 py-1 bg-green-600 rounded"
+      >
+        Save
+      </button>
+
+      <button
+        onClick={() => {
+          setEditingMessageId(null);
+          setEditInput("");
+        }}
+        className="text-xs px-2 py-1 bg-red-600 rounded"
+      >
+        Cancel
+      </button>
+    </div>
   </div>
+) : (
+  <div>
+    {msg.deleted ? (
+        <span className="italic text-neutral-400">
+            This message was deleted
+        </span>
+    ) : (
+        <>
+            {msg.content}
+
+            {msg.edited && (
+                <span className="ml-2 text-[10px] text-neutral-400 italic">
+                    (edited)
+                </span>
+            )}
+        </>
+    )}
 </div>
+)}
+{isMine && !msg.deleted && editingMessageId !== msg.id && (  <>
+    <button
+      onClick={() =>
+        setOpenMenuId(
+          openMenuId === msg.id ? null : msg.id
+        )
+      }
+      className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition text-xs"
+    >
+      ⋮
+    </button>
+
+    {openMenuId === msg.id && (
+      <div className="absolute right-0 top-6 bg-[#1f1f2b] border border-white/10 rounded-md overflow-hidden shadow-lg z-50 min-w-[100px]">
+        <button
+          onClick={() => {
+            setEditingMessageId(msg.id);
+            setEditInput(msg.content);
+            setOpenMenuId(null);
+          }}
+          className="block w-full text-left px-3 py-2 text-xs hover:bg-white/10"
+        >
+          Edit
+        </button>
+
+        <button
+    onClick={() => handleDeleteMessage(msg.id)}
+    className="block w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-white/10"
+>
+    Delete
+</button>
+      </div>
+    )}
+  </>
+)}
+
+                      <div className="text-[10px] mt-1 opacity-70 flex items-center gap-1">
+                        <span>
+                          {new Date(msg.created_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+
+                        {isMine && (
+                          <span
+                            className={`text-[11px] font-semibold ${msg.read
+                                ? "text-sky-400"
+                                : "text-neutral-400"
+                              }`}
+                          >
+                            {msg.read ? "✓✓" : "✓"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {typingUser && (
+                <div className="text-xs text-neutral-400 italic">
+                  {typingUser} is typing...
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+
+            </div>
+          )}
+        </div>
+
+
+
+        <div className="p-3 border-t border-white/[0.06] flex gap-2">
+          <input
+            type="text"
+            value={messageInput}
+            onChange={(e) =>
+              handleTyping(e.target.value)
+            }
+            onKeyDown={(e) =>
+              e.key === "Enter" &&
+              handleSendMessage()
+            }
+            placeholder="Type message..."
+            className="flex-1 bg-[#181822] border border-white/[0.06] rounded px-3 text-sm text-white outline-none"
+          />
+
+          <button
+            onClick={handleSendMessage}
+            className="px-4 bg-indigo-600 hover:bg-indigo-500 rounded text-white text-sm"
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

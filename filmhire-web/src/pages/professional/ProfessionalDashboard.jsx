@@ -9,8 +9,10 @@ import JobsView from "../../components/professional/JobsView";
 import ProfessionalNavbar from "../../components/professional/ProfessionalNavbar";
 import ProfessionalWorkspaceView from "../../components/professional/ProfessionalWorkspaceView";
 import HomeSkeleton from "../../components/loaders/HomeSkeletonProfessional";
+import { usePresence } from "../../context/PresenceContext";
 
 const ProfessionalDashboard = () => {
+  const { onlineUsers } = usePresence();
   const navigate = useNavigate();
  
   const [feedJobs, setFeedJobs] = useState([]);
@@ -648,6 +650,9 @@ setSelectedFile(file);
     );
   }
 
+  console.log("GLOBAL ONLINE USERS", onlineUsers);
+
+
   return (
     <div className="min-h-screen bg-[#09090d] text-[#e2e2e9] antialiased flex flex-col font-sans selection:bg-indigo-500/30 selection:text-white">
       <style>{`
@@ -701,7 +706,8 @@ setSelectedFile(file);
         )}
 
         {currentTab === "workspaces" && (
-  <ProfessionalWorkspaceView />
+  <ProfessionalWorkspaceView
+/>
 )}
         {currentTab === "profile" && (
           <ProfileView
